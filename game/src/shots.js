@@ -1,79 +1,109 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+// Kota Raya — screenshot scenes behind ?shot=start|drive|chase|mission.
+// Each one plays the real rules forward from a fresh world for a few seconds
+// with a simple autopilot, so the frame is what a short game really looks like
+// and the same seed always gives the same frame. Sets window.__shotReady when
+// the scene is painted, which the screenshot script waits for.
+import { raiseWanted } from './police.js';
+import { enterCar } from './player.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
+const STEP = 1 / 60;
 
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
-  }
-  return Infinity;
+function autoInput(throttle, steer) {
+  return {
+    throttle: () => throttle,
+    steer: () => steer,
+    sprint: () => false,
+    brake: () => false,
+    takeActions: () => 0,
+  };
 }
 
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
-  }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
-    }
-  }
-  return best;
+function idleInput() {
+  return autoInput(0, 0);
 }
 
-/**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
+function driveInput() {
+  return autoInput(1, 0);
+}
+
+/** Stage `game` to the named scene and paint it. Returns the screen name. */
+export function stageShot(name, game) {
+  const { world } = game;
+  const player = world.player;
+  const missions = world.missions;
+
+  if (name === 'drive') {
+    // Raka driving his blue sedan down the eastern avenue, traffic around him.
+    const car = world.starterCar;
+    player.x = 70;
+    player.z = -140;
+    car.x = 70;
+    car.z = -140;
+    car.heading = 0;
+    car.speed = 18;
+    car.mesh.position.set(70, 0, -140);
+    car.mesh.rotation.y = 0;
+    enterCar(player, car, world.scene);
+    for (let i = 0; i < 150; i += 1) game.step(STEP, driveInput(), 0);
+    game.renderer3.snap(player.car, true);
+    game.renderFrame(STEP);
+    window.__shotReady = true;
+    return 'play';
   }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
+
+  if (name === 'chase') {
+    // Wanted level 3: three police cars hunting Raka's sedan down the avenue.
+    const car = world.starterCar;
+    player.x = 70;
+    player.z = -60;
+    car.x = 70;
+    car.z = -60;
+    car.heading = 0;
+    car.speed = 24;
+    car.mesh.position.set(70, 0, -60);
+    car.mesh.rotation.y = 0;
+    enterCar(player, car, world.scene);
+    raiseWanted(world.wanted, 3, 'shot-chase');
+    world.audio.siren(true);
+    for (let i = 0; i < 210; i += 1) game.step(STEP, driveInput(), 0);
+    // Roadblock: one police car ahead, coming at the player, so the chase
+    // reads in a single frame instead of hiding behind the camera.
+    const blocker = world.wanted.police[0];
+    if (blocker) {
+      blocker.x = player.x - 6;
+      blocker.z = player.z + 26;
+      blocker.heading = player.heading + Math.PI;
+      blocker.speed = 12;
+      blocker.mesh.position.set(blocker.x, 0, blocker.z);
+      blocker.mesh.rotation.y = blocker.heading;
+    }
+    game.renderer3.snap(player.car, true);
+    game.renderFrame(STEP);
+    window.__shotReady = true;
+    return 'play';
   }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
+
+  if (name === 'mission') {
+    // Mission 3, "Mobil Pesanan": Raka on foot by the red sedan downtown,
+    // the yellow beacon marking it, police-free for the moment.
+    missions.startMission(2);
+    player.x = 58;
+    player.z = -58;
+    // Face the red sedan parked downtown (north-east of the player).
+    player.heading = Math.PI * 3 / 4;
+    player.mesh.position.set(player.x, 0, player.z);
+    player.mesh.rotation.y = player.heading;
+    for (let i = 0; i < 90; i += 1) game.step(STEP, idleInput(), 0);
+    game.renderer3.snap(player, false);
+    game.renderFrame(STEP);
+    window.__shotReady = true;
+    return 'play';
+  }
+
+  // Default: start — a slow orbit over downtown behind the title screen.
+  for (let i = 0; i < 120; i += 1) game.stepAmbient(STEP);
+  game.renderer3.orbit(9);
+  game.renderer3.render();
+  window.__shotReady = true;
+  return 'title';
 }
