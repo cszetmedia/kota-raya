@@ -16,7 +16,7 @@ export function createRenderer3(canvas) {
   scene.background = new THREE.Color(TROPIC.skyBottom);
   scene.fog = new THREE.Fog(TROPIC.fogColor, TROPIC.fogNear, TROPIC.fogFar);
 
-  // Gradient sky dome.
+  // A gradient sky dome, deep blue at the top fading to pale haze.
   const skyCanvas = document.createElement('canvas');
   skyCanvas.width = 4;
   skyCanvas.height = 256;
@@ -36,7 +36,7 @@ export function createRenderer3(canvas) {
   );
   scene.add(sky);
 
-  // Sun.
+  // The afternoon sun, with a wide shadow camera over the whole city.
   const sun = new THREE.DirectionalLight(TROPIC.sunColor, TROPIC.sunIntensity);
   sun.position.set(140, 220, 80);
   sun.castShadow = true;
@@ -53,7 +53,13 @@ export function createRenderer3(canvas) {
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 1600);
   camera.position.set(0, 40, -60);
 
-  const camState = { yaw: 0, pitch: 0.32, dist: 11, pos: new THREE.Vector3(0, 40, -60), look: new THREE.Vector3() };
+  const camState = {
+    yaw: 0,
+    pitch: 0.32,
+    dist: 11,
+    pos: new THREE.Vector3(0, 40, -60),
+    look: new THREE.Vector3(),
+  };
 
   function resize() {
     const w = window.innerWidth;
@@ -65,13 +71,18 @@ export function createRenderer3(canvas) {
   resize();
   window.addEventListener('resize', resize);
 
-  /** Smooth follow camera. `target` is {x, z, heading, speed}; inCar pulls back. */
-  function follow(target, inCar, dt) {
-    const desiredYaw = target.heading;
-    let dy = desiredYaw - camState.yaw;
+  // Ease the camera yaw towards the target heading along the short way round.
+  function easeYaw(target, dt, rate) {
+    let dy = target - camState.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
-    camState.yaw += dy * Math.min(1, dt * (inCar ? 2.2 : 3.5));
+    camState.yaw += dy * Math.min(1, dt * rate);
+  }
+
+  // Smooth follow camera. `target` is {x, z, heading, speed}; driving pulls
+  // the camera further back and a little higher.
+  function follow(target, inCar, dt) {
+    easeYaw(target.heading, dt, inCar ? 2.2 : 3.5);
     const dist = inCar ? 14 : 10;
     const height = inCar ? 5.6 : 4.6;
     const tx = target.x - Math.sin(camState.yaw) * dist;
@@ -87,7 +98,7 @@ export function createRenderer3(canvas) {
     camera.lookAt(camState.look);
   }
 
-  /** Snap the camera instantly behind the target (used to stage screenshots). */
+  // Snap the camera instantly behind the target (used to stage screenshots).
   function snap(target, inCar) {
     camState.yaw = target.heading;
     const dist = inCar ? 14 : 10;
@@ -106,7 +117,7 @@ export function createRenderer3(canvas) {
     camera.lookAt(camState.look);
   }
 
-  /** Cinematic camera for the title screen: slow orbit over downtown. */
+  // Cinematic camera for the title screen: a slow orbit over downtown.
   function orbit(time) {
     const a = time * 0.05;
     camera.position.set(Math.sin(a) * 170, 90, Math.cos(a) * 170 - 20);

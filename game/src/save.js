@@ -1,34 +1,38 @@
-// Kota Raya — save and load. Progress (cash, mission, story done) lives in
-// localStorage so a visit later picks up where the last one ended.
+// Kota Raya — saving progress. Cash, the next mission and whether the story
+// is done live in localStorage, so coming back later resumes where the last
+// visit ended. Anything malformed or unavailable is treated as "no save".
 import { SAVE_KEY } from './config.js';
 
+function asNumber(value, fallback) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 export function loadSave() {
+  let parsed;
   try {
     const raw = window.localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (typeof data !== 'object' || data === null) return null;
-    return {
-      cash: typeof data.cash === 'number' ? data.cash : 0,
-      missionIndex: typeof data.missionIndex === 'number' ? data.missionIndex : 0,
-      storyDone: data.storyDone === true,
-    };
+    parsed = JSON.parse(raw);
   } catch {
     return null;
   }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  return {
+    cash: asNumber(parsed.cash, 0),
+    missionIndex: asNumber(parsed.missionIndex, 0),
+    storyDone: parsed.storyDone === true,
+  };
 }
 
 export function saveGame(state) {
+  const payload = {
+    cash: state.cash,
+    missionIndex: state.missionIndex,
+    storyDone: state.storyDone,
+    savedAt: Date.now(),
+  };
   try {
-    window.localStorage.setItem(
-      SAVE_KEY,
-      JSON.stringify({
-        cash: state.cash,
-        missionIndex: state.missionIndex,
-        storyDone: state.storyDone,
-        savedAt: Date.now(),
-      }),
-    );
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     return true;
   } catch {
     return false;
@@ -39,6 +43,6 @@ export function clearSave() {
   try {
     window.localStorage.removeItem(SAVE_KEY);
   } catch {
-    /* storage unavailable */
+    // Storage may be unavailable (private mode, blocked cookies); ignore.
   }
 }

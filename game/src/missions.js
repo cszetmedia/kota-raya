@@ -7,12 +7,13 @@ import { raiseWanted } from './police.js';
 
 export const STORY_COMPLETE_CASH_BONUS = 0;
 
-function makeBeacon(scene) {
+// The yellow beacon: a light column and a pulsing ring on the ground.
+function buildBeacon(scene) {
   const beacon = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.35 });
-  const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 40, 16, 1, true), mat);
-  cylinder.position.y = 20;
-  beacon.add(cylinder);
+  const columnMat = new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.35 });
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 40, 16, 1, true), columnMat);
+  column.position.y = 20;
+  beacon.add(column);
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(2.2, 3.2, 24),
     new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.8, side: THREE.DoubleSide }),
@@ -26,13 +27,13 @@ function makeBeacon(scene) {
   return beacon;
 }
 
-function near(player, target, radius) {
+function within(player, target, radius) {
   return Math.hypot(player.x - target.x, player.z - target.z) < radius;
 }
 
-/** The four missions, each a list of steps with a check that advances them. */
+// The four missions, each a list of steps with a check that advances them.
 export function createMissions(scene, world) {
-  const beacon = makeBeacon(scene);
+  const beacon = buildBeacon(scene);
   const missions = [
     {
       id: 1,
@@ -54,7 +55,7 @@ export function createMissions(scene, world) {
         {
           text: 'Antar paket ke warung pantai',
           target: { x: 150, z: 215, label: 'Warung Pantai' },
-          check: (w) => near(w.player, { x: 150, z: 215 }, 8),
+          check: (w) => within(w.player, { x: 150, z: 215 }, 8),
         },
       ],
     },
@@ -73,7 +74,7 @@ export function createMissions(scene, world) {
         {
           text: 'Jemput Sari di taman kota',
           target: { x: -196, z: -196, label: 'Taman Kota' },
-          check: (w) => near(w.player, { x: -196, z: -196 }, 7),
+          check: (w) => within(w.player, { x: -196, z: -196 }, 7),
           onEnter: (w) => {
             w.removeSariNpc();
             w.toast('Sari naik! Antar dia ke pasar Kampung Melati.');
@@ -82,7 +83,7 @@ export function createMissions(scene, world) {
         {
           text: 'Antar Sari ke pasar Kampung Melati',
           target: { x: -182, z: -140, label: 'Pasar Melati' },
-          check: (w) => near(w.player, { x: -182, z: -140 }, 8),
+          check: (w) => within(w.player, { x: -182, z: -140 }, 8),
         },
       ],
     },
@@ -112,7 +113,7 @@ export function createMissions(scene, world) {
         {
           text: 'Bawa sedan merah ke bengkel Darma',
           target: { x: -203, z: 182, label: 'Bengkel Darma' },
-          check: (w) => w.player.inCar && w.player.car === w.targetCar && near(w.player, { x: -203, z: 182 }, 9),
+          check: (w) => w.player.inCar && w.player.car === w.targetCar && within(w.player, { x: -203, z: 182 }, 9),
         },
       ],
     },
@@ -132,7 +133,7 @@ export function createMissions(scene, world) {
         {
           text: 'Kabur ke tempat persembunyian di utara — jangan ketangkap!',
           target: { x: 0, z: -231, label: 'Tempat Persembunyian' },
-          check: (w) => near(w.player, { x: 0, z: -231 }, 9),
+          check: (w) => within(w.player, { x: 0, z: -231 }, 9),
         },
       ],
     },
@@ -174,8 +175,8 @@ export function createMissions(scene, world) {
       }
     },
 
-    update(dt, w) {
-      // Pulse the beacon.
+    // Pulse the beacon ring and play the dialog lines one at a time.
+    animateBeaconAndDialog(dt, w) {
       if (beacon.visible) {
         const t = performance.now() / 1000;
         beacon.children[0].material.opacity = 0.25 + Math.sin(t * 3) * 0.12;
@@ -185,7 +186,6 @@ export function createMissions(scene, world) {
           ring.scale.set(s, s, 1);
         }
       }
-      // Dialog lines, one at a time.
       if (this.dialogQueue.length > 0) {
         this.dialogTimer -= dt;
         if (this.dialogTimer <= 0) {
@@ -194,6 +194,10 @@ export function createMissions(scene, world) {
           this.dialogTimer = 3.6;
         }
       }
+    },
+
+    update(dt, w) {
+      this.animateBeaconAndDialog(dt, w);
       if (!this.active || this.failed) return;
       if (this.timeLeft > 0) {
         this.timeLeft -= dt;
@@ -248,7 +252,9 @@ export function createMissions(scene, world) {
       let text = `${this.active.title}: ${step.text}`;
       if (this.timeLeft > 0) text += `  ·  ${Math.ceil(this.timeLeft)} dtk`;
       if (this.currentTarget) {
-        const d = Math.round(Math.hypot(world.player.x - this.currentTarget.x, world.player.z - this.currentTarget.z));
+        const d = Math.round(
+          Math.hypot(world.player.x - this.currentTarget.x, world.player.z - this.currentTarget.z),
+        );
         text += `  ·  ${d} m`;
       }
       return text;

@@ -6,7 +6,8 @@ import { PLAYER_TUNING, CAR_TUNING } from './config.js';
 import { makeCar } from './vehicles.js';
 import { resolveCollisions, clampToCity } from './city.js';
 
-function makeRaka() {
+// Raka: red cap, blue jacket, jeans.
+function buildRaka() {
   const group = new THREE.Group();
   const skin = new THREE.MeshLambertMaterial({ color: 0xc89878 });
   const jacket = new THREE.MeshLambertMaterial({ color: 0x2c6fd8 });
@@ -14,7 +15,10 @@ function makeRaka() {
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skin);
   head.position.y = 1.66;
   group.add(head);
-  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.14, 0.48), new THREE.MeshLambertMaterial({ color: 0xd8382c }));
+  const cap = new THREE.Mesh(
+    new THREE.BoxGeometry(0.48, 0.14, 0.48),
+    new THREE.MeshLambertMaterial({ color: 0xd8382c }),
+  );
   cap.position.y = 1.9;
   group.add(cap);
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.78, 0.34), jacket);
@@ -40,7 +44,7 @@ function makeRaka() {
 }
 
 export function createPlayer(scene, x, z) {
-  const mesh = makeRaka();
+  const mesh = buildRaka();
   mesh.position.set(x, 0, z);
   scene.add(mesh);
   return {
@@ -60,13 +64,26 @@ export function createPlayer(scene, x, z) {
   };
 }
 
-/** Move on foot: WASD relative to the camera yaw, sprint with Shift. */
+function animateWalk(player, moving) {
+  const swing = moving ? Math.sin(player.phase) * 0.55 : 0;
+  const legL = player.mesh.getObjectByName('legL');
+  const legR = player.mesh.getObjectByName('legR');
+  const armL = player.mesh.getObjectByName('armL');
+  const armR = player.mesh.getObjectByName('armR');
+  if (legL) legL.rotation.x = swing;
+  if (legR) legR.rotation.x = -swing;
+  if (armL) armL.rotation.x = -swing * 0.7;
+  if (armR) armR.rotation.x = swing * 0.7;
+  if (player.punchAnim > 0 && armR) armR.rotation.x = -1.6;
+}
+
+// Move on foot: WASD relative to the camera yaw, sprint with Shift.
 export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
   const throttle = input.throttle();
   const steer = input.steer();
   const sprint = input.sprint();
   const speed = sprint ? PLAYER_TUNING.sprintSpeed : PLAYER_TUNING.walkSpeed;
-  // Forward is where the camera looks; strafe is sideways.
+  // Forward is where the camera looks; sideways is the strafe axis.
   const fx = Math.sin(cameraYaw);
   const fz = Math.cos(cameraYaw);
   const rx = Math.cos(cameraYaw);
@@ -74,13 +91,14 @@ export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
   let mx = fx * throttle + rx * steer;
   let mz = fz * throttle + rz * steer;
   const len = Math.hypot(mx, mz);
-  if (len > 0.01) {
+  const moving = len > 0.01;
+  if (moving) {
     mx /= len;
     mz /= len;
     player.x += mx * speed * dt;
     player.z += mz * speed * dt;
-    const targetHeading = Math.atan2(mx, mz);
-    let diff = targetHeading - player.heading;
+    // Ease the facing towards the movement direction, fastest when turning.
+    let diff = Math.atan2(mx, mz) - player.heading;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     player.heading += diff * Math.min(1, dt * PLAYER_TUNING.turnSpeed);
@@ -96,24 +114,13 @@ export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
   player.z = resolved.z;
   player.mesh.position.set(player.x, 0, player.z);
   player.mesh.rotation.y = player.heading;
-  const swing = len > 0.01 ? Math.sin(player.phase) * 0.55 : 0;
-  const legL = player.mesh.getObjectByName('legL');
-  const legR = player.mesh.getObjectByName('legR');
-  const armL = player.mesh.getObjectByName('armL');
-  const armR = player.mesh.getObjectByName('armR');
-  if (legL) legL.rotation.x = swing;
-  if (legR) legR.rotation.x = -swing;
-  if (armL) armL.rotation.x = -swing * 0.7;
-  if (armR) armR.rotation.x = swing * 0.7;
-  if (player.punchAnim > 0) {
-    player.punchAnim -= dt;
-    if (armR) armR.rotation.x = -1.6;
-  }
+  animateWalk(player, moving);
+  if (player.punchAnim > 0) player.punchAnim -= dt;
   if (player.punchCooldown > 0) player.punchCooldown -= dt;
   if (player.invulnerable > 0) player.invulnerable -= dt;
 }
 
-/** Drive the player's car with arcade physics and building collision. */
+// Drive the player's car with arcade physics and building collision.
 export function stepPlayerInCar(player, input, colliders, dt) {
   const car = player.car;
   const drive = { speed: car.speed, heading: car.heading, x: car.x, z: car.z };
@@ -136,7 +143,7 @@ export function stepPlayerInCar(player, input, colliders, dt) {
   drive.z += Math.cos(drive.heading) * drive.speed * dt;
   const clamped = clampToCity(drive.x, drive.z);
   const resolved = resolveCollisions(colliders, clamped.x, clamped.z, CAR_TUNING.radius);
-  // A hard stop against a wall kills speed.
+  // A hard stop against a wall kills most of the speed.
   if (Math.hypot(resolved.x - drive.x, resolved.z - drive.z) > 0.05) {
     drive.speed *= 0.4;
   }
@@ -153,12 +160,12 @@ export function stepPlayerInCar(player, input, colliders, dt) {
   return car;
 }
 
-/** Take over a car mesh as the player's ride. */
+// Take over a car mesh as the player's ride.
 export function enterCar(player, car, scene) {
   if (car.taken) return false;
   car.taken = true;
   if (car.driver) {
-    // The driver bails out and runs: remove the traffic car from its lane.
+    // The driver bails out and runs: the traffic car leaves its lane.
     car.driver = false;
   }
   player.car = car;
@@ -173,7 +180,7 @@ export function enterCar(player, car, scene) {
   return true;
 }
 
-/** Step out beside the car; the car stays where it stopped. */
+// Step out beside the car; the car stays where it stopped.
 export function exitCar(player, scene) {
   const car = player.car;
   if (!car) return;
@@ -188,7 +195,7 @@ export function exitCar(player, scene) {
   car.speed = 0;
 }
 
-/** Build a fresh player car at a spot (mission cars, the starter ride). */
+// Build a fresh player car at a spot (mission cars, the starter ride).
 export function spawnPlayerCar(scene, color, x, z, heading) {
   const mesh = makeCar(color);
   mesh.position.set(x, 0, z);

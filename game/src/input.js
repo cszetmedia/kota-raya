@@ -1,34 +1,47 @@
-// Kota Raya — keyboard input. Held keys steer and drive; one-shot presses
-// (enter car, punch, pause, mute) are queued as flags and taken once by the
-// loop, so a press between two frames is never lost or counted twice.
+// Kota Raya — keyboard input.
+//
+// Held keys steer and drive; one-shot presses (get in a car, punch, pause,
+// mute, confirm) are latched as flags and collected once by the game loop,
+// so a press that lands between two frames is never lost or counted twice.
 export const ACTION_ENTER = 1;
 export const ACTION_PUNCH = 2;
 export const ACTION_PAUSE = 4;
 export const ACTION_MUTE = 8;
 export const ACTION_CONFIRM = 16;
 
-const FORWARD = new Set(['KeyW', 'ArrowUp']);
-const BACK = new Set(['KeyS', 'ArrowDown']);
-const LEFT = new Set(['KeyA', 'ArrowLeft']);
-const RIGHT = new Set(['KeyD', 'ArrowRight']);
-const SPRINT = new Set(['ShiftLeft', 'ShiftRight']);
-const BRAKE = new Set(['Space']);
+// Which physical keys count as each direction. Both WASD and arrows work.
+const KEY_BINDINGS = {
+  forward: ['KeyW', 'ArrowUp'],
+  back: ['KeyS', 'ArrowDown'],
+  left: ['KeyA', 'ArrowLeft'],
+  right: ['KeyD', 'ArrowRight'],
+  sprint: ['ShiftLeft', 'ShiftRight'],
+  brake: ['Space'],
+};
+
+// One-shot keys and the flag each one raises.
+const PRESS_ACTIONS = {
+  KeyE: ACTION_ENTER,
+  KeyF: ACTION_PUNCH,
+  Escape: ACTION_PAUSE,
+  KeyP: ACTION_PAUSE,
+  KeyM: ACTION_MUTE,
+  Enter: ACTION_CONFIRM,
+};
+
+// Keys whose default browser behaviour (page scroll) must be stopped.
+const SCROLL_KEYS = new Set([...KEY_BINDINGS.forward, ...KEY_BINDINGS.back, ...KEY_BINDINGS.brake]);
 
 export function createInput() {
   const held = new Set();
-  let actions = 0;
+  let queued = 0;
 
   window.addEventListener('keydown', (event) => {
     if (event.repeat) return;
     held.add(event.code);
-    if (event.code === 'KeyE') actions |= ACTION_ENTER;
-    else if (event.code === 'KeyF') actions |= ACTION_PUNCH;
-    else if (event.code === 'Escape' || event.code === 'KeyP') actions |= ACTION_PAUSE;
-    else if (event.code === 'KeyM') actions |= ACTION_MUTE;
-    else if (event.code === 'Enter') actions |= ACTION_CONFIRM;
-    if (FORWARD.has(event.code) || BACK.has(event.code) || BRAKE.has(event.code)) {
-      event.preventDefault();
-    }
+    const flag = PRESS_ACTIONS[event.code];
+    if (flag !== undefined) queued |= flag;
+    if (SCROLL_KEYS.has(event.code)) event.preventDefault();
   });
   window.addEventListener('keyup', (event) => {
     held.delete(event.code);
@@ -37,30 +50,27 @@ export function createInput() {
     held.clear();
   });
 
-  function has(set) {
-    for (const code of set) if (held.has(code)) return true;
-    return false;
-  }
+  const anyHeld = (codes) => codes.some((code) => held.has(code));
 
   return {
-    /** -1 back, 1 forward, 0 neither or both. */
+    // -1 for back, +1 for forward, 0 when neither (or both) are held.
     throttle() {
-      return (has(FORWARD) ? 1 : 0) - (has(BACK) ? 1 : 0);
+      return (anyHeld(KEY_BINDINGS.forward) ? 1 : 0) - (anyHeld(KEY_BINDINGS.back) ? 1 : 0);
     },
-    /** -1 left, 1 right, 0 neither or both. */
+    // -1 for left, +1 for right, 0 when neither (or both) are held.
     steer() {
-      return (has(RIGHT) ? 1 : 0) - (has(LEFT) ? 1 : 0);
+      return (anyHeld(KEY_BINDINGS.right) ? 1 : 0) - (anyHeld(KEY_BINDINGS.left) ? 1 : 0);
     },
     sprint() {
-      return has(SPRINT);
+      return anyHeld(KEY_BINDINGS.sprint);
     },
     brake() {
-      return has(BRAKE);
+      return anyHeld(KEY_BINDINGS.brake);
     },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
+    // The one-shot presses since the last call, as ACTION_* flags.
     takeActions() {
-      const taken = actions;
-      actions = 0;
+      const taken = queued;
+      queued = 0;
       return taken;
     },
   };

@@ -1,39 +1,50 @@
-// Kota Raya — procedural city. One painted ground texture carries the roads,
-// sidewalks, beach and sea; buildings are one InstancedMesh with a window
-// texture; the Tugu Raya monument, palms, lamps and neon signs are props.
-// Every building registers an AABB collider so cars and the player cannot
-// drive through walls.
+// Kota Raya — the procedural city.
+//
+// One painted ground texture carries the roads, sidewalks, beach and sea;
+// buildings are a single InstancedMesh with a window texture; the Tugu Raya
+// monument, palms, lamps and neon signs are props. Every building registers
+// an AABB collider so cars and the player cannot drive through walls.
+//
+// The layout is drawn from the seeded generator, and the order the generator
+// is consumed in is part of the city: keep the draw order of this module the
+// same and a seed always builds the same streets.
 import { WORLD } from './config.js';
 import { pick, range, rangeInt } from './random.js';
 
-const BUILDING_COLORS = [0xE8DCC8, 0xD9C7A7, 0xC9B18C, 0x9FB8C8, 0xB8C4A8, 0xD8A08A, 0xA8B8D8, 0xE8C8A0];
+const BUILDING_COLORS = [0xe8dcc8, 0xd9c7a7, 0xc9b18c, 0x9fb8c8, 0xb8c4a8, 0xd8a08a, 0xa8b8d8, 0xe8c8a0];
 const NEON_COLORS = [0xff2d78, 0x00e5ff, 0xffd400, 0x7cff00, 0xff6a00];
+const MAP_SIZE = 560; // the ground plane covers -280..280 on both axes
 
-function makeGroundTexture() {
-  const size = 1024;
+// Paint the whole map onto one canvas: concrete, sea and sand, the park and
+// the monument plaza, sidewalk blocks, then asphalt, lane dashes and
+// crosswalks, in that order.
+function paintGround() {
+  const px = 1024;
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = px;
+  canvas.height = px;
   const g = canvas.getContext('2d');
-  const toPx = (v) => ((v + 280) / 560) * size;
-  // Base: warm concrete.
+  const toPx = (v) => ((v + 280) / MAP_SIZE) * px;
+  const rect = (x0, z0, x1, z1) => g.fillRect(toPx(x0), toPx(z0), toPx(x1) - toPx(x0), toPx(z1) - toPx(z0));
+
   g.fillStyle = '#a08a68';
-  g.fillRect(0, 0, size, size);
-  // Sea (south, high z) and sand.
+  g.fillRect(0, 0, px, px);
+
+  // Sea along the south edge, sand in front of it, foam where they meet.
   g.fillStyle = '#2fa8c8';
-  g.fillRect(0, toPx(WORLD.seaZ), size, size - toPx(WORLD.seaZ));
+  rect(-280, WORLD.seaZ, 280, 280);
   g.fillStyle = '#e8d8a0';
-  g.fillRect(0, toPx(WORLD.beachZ), size, toPx(WORLD.seaZ) - toPx(WORLD.beachZ));
-  // Foam line where the sea meets the sand.
+  rect(-280, WORLD.beachZ, 280, WORLD.seaZ);
   g.fillStyle = 'rgba(255,255,255,0.65)';
-  g.fillRect(0, toPx(WORLD.seaZ) - 3, size, 6);
-  // Park block (north-west) and the monument plaza (centre).
+  g.fillRect(0, toPx(WORLD.seaZ) - 3, px, 6);
+
+  // The north-west park and the central monument plaza.
   g.fillStyle = '#7cb86a';
-  g.fillRect(toPx(-245), toPx(-245), toPx(-175) - toPx(-245), toPx(-175) - toPx(-245));
+  rect(-245, -245, -175, -175);
   g.fillStyle = '#c8b898';
-  const plaza = 30;
-  g.fillRect(toPx(-plaza), toPx(-plaza), toPx(plaza) - toPx(-plaza), toPx(plaza) - toPx(-plaza));
-  // Sidewalk blocks: grey-tan squares between roads.
+  rect(-30, -30, 30, 30);
+
+  // Sidewalk blocks between the roads.
   g.fillStyle = '#a89e86';
   for (let i = 0; i < WORLD.roads.length - 1; i += 1) {
     for (let j = 0; j < WORLD.roads.length - 1; j += 1) {
@@ -42,15 +53,19 @@ function makeGroundTexture() {
       const z0 = WORLD.roads[j] + WORLD.roadWidth / 2;
       const z1 = WORLD.roads[j + 1] - WORLD.roadWidth / 2;
       if (z1 > WORLD.beachZ) continue;
-      g.fillRect(toPx(x0), toPx(z0), toPx(x1) - toPx(x0), toPx(z1) - toPx(z0));
+      rect(x0, z0, x1, z1);
     }
   }
-  // Roads: dark asphalt with dashed centre lines and crosswalks.
+
+  // Asphalt: one strip per road on each axis.
   g.fillStyle = '#3a3f46';
+  const half = WORLD.roadWidth / 2;
   for (const r of WORLD.roads) {
-    g.fillRect(toPx(r - WORLD.roadWidth / 2), 0, toPx(WORLD.roadWidth) - toPx(0), toPx(WORLD.beachZ));
-    g.fillRect(0, toPx(r - WORLD.roadWidth / 2), size, toPx(WORLD.roadWidth) - toPx(0));
+    rect(r - half, -280, r + half, WORLD.beachZ);
+    rect(-280, r - half, 280, r + half);
   }
+
+  // Yellow centre dashes.
   g.fillStyle = '#f2d24b';
   for (const r of WORLD.roads) {
     for (let v = -270; v < WORLD.beachZ; v += 12) {
@@ -58,6 +73,8 @@ function makeGroundTexture() {
       g.fillRect(toPx(v), toPx(r) - 1, 6, 2);
     }
   }
+
+  // Crosswalk stripes at every intersection.
   g.fillStyle = 'rgba(255,255,255,0.85)';
   for (const rx of WORLD.roads) {
     for (const rz of WORLD.roads) {
@@ -67,13 +84,15 @@ function makeGroundTexture() {
       }
     }
   }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.anisotropy = 4;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
-function makeWindowTexture() {
+// A repeating facade: warm concrete with a grid of lit and dark windows.
+function paintFacade() {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
   canvas.height = 128;
@@ -92,7 +111,8 @@ function makeWindowTexture() {
   return tex;
 }
 
-function makePalm(rng) {
+// One palm: a leaning trunk and six cone leaves.
+function buildPalm(rng) {
   const group = new THREE.Group();
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8a6a48 });
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, 4.2, 6), trunkMat);
@@ -102,9 +122,9 @@ function makePalm(rng) {
   const leafMat = new THREE.MeshLambertMaterial({ color: 0x3f9e4d });
   for (let i = 0; i < 6; i += 1) {
     const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.6, 4), leafMat);
-    const a = (i / 6) * Math.PI * 2;
-    leaf.position.set(Math.cos(a) * 1.1, 4.4, Math.sin(a) * 1.1);
-    leaf.rotation.set(Math.sin(a) * 1.1, 0, -Math.cos(a) * 1.1);
+    const angle = (i / 6) * Math.PI * 2;
+    leaf.position.set(Math.cos(angle) * 1.1, 4.4, Math.sin(angle) * 1.1);
+    leaf.rotation.set(Math.sin(angle) * 1.1, 0, -Math.cos(angle) * 1.1);
     group.add(leaf);
   }
   return group;
@@ -120,14 +140,14 @@ export function createCity(scene, rng) {
   // Ground: one textured plane for the whole map.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(560, 560),
-    new THREE.MeshLambertMaterial({ map: makeGroundTexture() }),
+    new THREE.MeshLambertMaterial({ map: paintGround() }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, 0, 10);
   ground.receiveShadow = true;
   group.add(ground);
 
-  // Sea plane, slightly below the sand so the shoreline reads.
+  // The sea plane, just below the sand so the shoreline reads.
   const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(560, 268),
     new THREE.MeshLambertMaterial({ color: 0x2fa8c8 }),
@@ -136,8 +156,8 @@ export function createCity(scene, rng) {
   sea.position.set(0, -0.15, WORLD.seaZ + 134);
   group.add(sea);
 
-  // Buildings: one instanced box per building, window texture, varied colour.
-  const windowTex = makeWindowTexture();
+  // Where the buildings go: one or two per block, two or three downtown,
+  // skipping the beach row, the monument plaza and the park.
   const placements = [];
   for (let i = 0; i < WORLD.roads.length - 1; i += 1) {
     for (let j = 0; j < WORLD.roads.length - 1; j += 1) {
@@ -145,8 +165,7 @@ export function createCity(scene, rng) {
       const x1 = WORLD.roads[i + 1] - WORLD.roadWidth / 2 - 4;
       const z0 = WORLD.roads[j] + WORLD.roadWidth / 2 + 4;
       const z1 = WORLD.roads[j + 1] - WORLD.roadWidth / 2 - 4;
-      if (z1 > WORLD.beachZ - 4) continue; // beach row stays open
-      // Monument plaza block and park block stay clear.
+      if (z1 > WORLD.beachZ - 4) continue;
       const cx = (x0 + x1) / 2;
       const cz = (z0 + z1) / 2;
       if (Math.abs(cx) < 42 && Math.abs(cz) < 42) continue;
@@ -165,7 +184,7 @@ export function createCity(scene, rng) {
   }
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   boxGeo.translate(0, 0.5, 0);
-  const boxMat = new THREE.MeshLambertMaterial({ map: windowTex });
+  const boxMat = new THREE.MeshLambertMaterial({ map: paintFacade() });
   const instanced = new THREE.InstancedMesh(boxGeo, boxMat, placements.length);
   const matrix = new THREE.Matrix4();
   const quat = new THREE.Quaternion();
@@ -187,7 +206,7 @@ export function createCity(scene, rng) {
   instanced.receiveShadow = true;
   group.add(instanced);
 
-  // Tugu Raya: the city's golden obelisk on the central plaza.
+  // Tugu Raya: the golden obelisk on the central plaza.
   const monument = new THREE.Group();
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(9, 11, 3, 8),
@@ -211,7 +230,7 @@ export function createCity(scene, rng) {
   monument.add(flame);
   group.add(monument);
 
-  // Park trees (north-west block).
+  // Park trees in the north-west block.
   const leafMat = new THREE.MeshLambertMaterial({ color: 0x4d9e57 });
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a5a38 });
   for (let i = 0; i < 14; i += 1) {
@@ -225,15 +244,15 @@ export function createCity(scene, rng) {
     group.add(crown);
   }
 
-  // Palms along the beach and the main avenue.
+  // Palms along the beach, then along the main avenue.
   for (let i = 0; i < 26; i += 1) {
-    const palm = makePalm(rng);
+    const palm = buildPalm(rng);
     if (i < 16) palm.position.set(range(rng, -240, 240), 0, range(rng, 256, 282));
     else palm.position.set(i % 2 === 0 ? -11 : 11, 0, range(rng, -200, 200));
     group.add(palm);
   }
 
-  // Neon signs on the beach strip.
+  // Neon signs over the beach strip.
   for (let i = 0; i < 8; i += 1) {
     const sign = new THREE.Mesh(
       new THREE.BoxGeometry(range(rng, 6, 12), 2.2, 0.5),
@@ -246,7 +265,7 @@ export function createCity(scene, rng) {
     group.add(sign);
   }
 
-  // Street lamps at intersections.
+  // A street lamp at every intersection.
   const lampMat = new THREE.MeshLambertMaterial({ color: 0x30343a });
   const bulbMat = new THREE.MeshLambertMaterial({ color: 0xffe9a8, emissive: 0xccaa44 });
   for (const rx of WORLD.roads) {
@@ -260,7 +279,7 @@ export function createCity(scene, rng) {
     }
   }
 
-  // Parked cars along the kerb (stealable, not traffic).
+  // Kerb spots for parked cars (stealable, not traffic).
   for (let i = 0; i < 10; i += 1) {
     const road = pick(rng, WORLD.roads);
     const along = range(rng, -200, 200);
@@ -273,7 +292,7 @@ export function createCity(scene, rng) {
   return { colliders, parkSpots, group };
 }
 
-/** Push a circle (x, z, radius) out of every building AABB it overlaps. */
+// Push a circle (x, z, radius) out of every building AABB it overlaps.
 export function resolveCollisions(colliders, x, z, radius) {
   let nx = x;
   let nz = z;
@@ -288,21 +307,22 @@ export function resolveCollisions(colliders, x, z, radius) {
       nx = cx + (dx / d) * radius;
       nz = cz + (dz / d) * radius;
     } else if (d2 <= 0.0001) {
-      // Centre inside the box: push out along the smallest penetration.
-      const pushLeft = nx - c.minX;
-      const pushRight = c.maxX - nx;
-      const pushUp = nz - c.minZ;
-      const pushDown = c.maxZ - nz;
-      const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
-      if (min === pushLeft) nx = c.minX - radius;
-      else if (min === pushRight) nx = c.maxX + radius;
-      else if (min === pushUp) nz = c.minZ - radius;
+      // The centre is inside the box: leave through the nearest face.
+      const toLeft = nx - c.minX;
+      const toRight = c.maxX - nx;
+      const toTop = nz - c.minZ;
+      const toBottom = c.maxZ - nz;
+      const min = Math.min(toLeft, toRight, toTop, toBottom);
+      if (min === toLeft) nx = c.minX - radius;
+      else if (min === toRight) nx = c.maxX + radius;
+      else if (min === toTop) nz = c.minZ - radius;
       else nz = c.maxZ + radius;
     }
   }
   return { x: nx, z: nz };
 }
 
+// Keep a point inside the playable map (the beach extends a little further).
 export function clampToCity(x, z) {
   const half = WORLD.cityHalf;
   return {

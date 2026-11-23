@@ -1,13 +1,17 @@
 // Kota Raya — pedestrians: simple walkers on the sidewalks who stroll their
 // block, flee from a speeding car, and fall over when punched. Hitting one
 // with a car or a fist is a crime the wanted system notices.
+//
+// Draw order per walker (skin, shirt, road, lane, start, direction, speed,
+// phase) is part of the seeded city: keep it in this order.
 import { WORLD } from './config.js';
 import { pick, range } from './random.js';
 
 const SHIRT_COLORS = [0xe86a6a, 0x6aa8e8, 0x6ae8a0, 0xf2d24b, 0xd86ad8, 0x8ad8e8, 0xe8e8e8];
 const SKIN_COLORS = [0xc89878, 0x8a5a3a, 0xe8b898, 0x6a4530];
 
-function makePed(rng) {
+// One boxy walker with swinging limbs.
+function buildPed(rng) {
   const group = new THREE.Group();
   const skin = new THREE.MeshLambertMaterial({ color: pick(rng, SKIN_COLORS) });
   const shirt = new THREE.MeshLambertMaterial({ color: pick(rng, SHIRT_COLORS) });
@@ -40,7 +44,7 @@ function makePed(rng) {
 export function createPedestrians(scene, rng, count) {
   const peds = [];
   for (let i = 0; i < count; i += 1) {
-    const mesh = makePed(rng);
+    const mesh = buildPed(rng);
     // Walk along a sidewalk edge of a random block.
     const roadX = pick(rng, WORLD.roads);
     const roadZ = pick(rng, WORLD.roads);
@@ -66,13 +70,24 @@ export function createPedestrians(scene, rng, count) {
   return peds;
 }
 
+function swingLimbs(ped, swing) {
+  const legL = ped.mesh.getObjectByName('legL');
+  const legR = ped.mesh.getObjectByName('legR');
+  const armL = ped.mesh.getObjectByName('armL');
+  const armR = ped.mesh.getObjectByName('armR');
+  if (legL) legL.rotation.x = swing;
+  if (legR) legR.rotation.x = -swing;
+  if (armL) armL.rotation.x = -swing * 0.7;
+  if (armR) armR.rotation.x = swing * 0.7;
+}
+
 export function updatePedestrians(peds, dt, danger) {
   for (const ped of peds) {
     if (ped.down > 0) {
       ped.down -= dt;
-      ped.mesh.rotation.x = ped.down > 0 ? -Math.PI / 2 : 0;
-      ped.mesh.position.y = ped.down > 0 ? 0.3 : 0;
-      if (ped.down <= 0) ped.mesh.rotation.x = 0;
+      const stillDown = ped.down > 0;
+      ped.mesh.rotation.x = stillDown ? -Math.PI / 2 : 0;
+      ped.mesh.position.y = stillDown ? 0.3 : 0;
       continue;
     }
     // Flee from a fast car nearby.
@@ -111,19 +126,11 @@ export function updatePedestrians(peds, dt, danger) {
       }
       ped.phase += dt * 7;
     }
-    const swing = Math.sin(ped.phase) * 0.5;
-    const legL = ped.mesh.getObjectByName('legL');
-    const legR = ped.mesh.getObjectByName('legR');
-    const armL = ped.mesh.getObjectByName('armL');
-    const armR = ped.mesh.getObjectByName('armR');
-    if (legL) legL.rotation.x = swing;
-    if (legR) legR.rotation.x = -swing;
-    if (armL) armL.rotation.x = -swing * 0.7;
-    if (armR) armR.rotation.x = swing * 0.7;
+    swingLimbs(ped, Math.sin(ped.phase) * 0.5);
   }
 }
 
-/** Knock a pedestrian down; returns the ped or null when nobody is close. */
+// Knock a pedestrian down; returns the ped, or null when nobody is close.
 export function punchPedestrian(peds, x, z, radius) {
   let best = null;
   let bestD = radius;

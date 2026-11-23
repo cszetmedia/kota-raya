@@ -1,19 +1,36 @@
-// Kota Raya — tuning and world constants.
-// The city is a 7x7 road grid with a downtown core, a kampung quarter, a neon
-// beach strip and the sea to the south. Everything is tuned so the world stays
-// readable at a glance and runs at 30 fps in a headless browser.
+// Kota Raya — all the numbers the game is tuned with, in one place.
+//
+// The island city is a square grid of roads with a dense downtown, a kampung
+// quarter, a neon beach strip and the sea along the south edge. The numbers
+// below keep the world readable at a glance and the frame rate smooth, even
+// in a headless browser.
+
+// How the save file is named in localStorage.
 export const SAVE_KEY = 'kotaraya-save-v1';
 
+// How many cars and walkers the city starts with.
+export const TRAFFIC_COUNT = 14;
+export const PED_COUNT = 26;
+
+// Cash is tracked in thousands of rupiah: 150 means "Rp 150rb".
+export const MISSION_REWARDS = [150, 200, 350, 500];
+
+// The one-line control summary shown under the title screen.
+export const CONTROLS_TEXT =
+  'WASD gerak / nyetir · Shift lari / nitro · E masuk-keluar mobil · F pukul · Spasi rem tangan · Esc jeda · M suara';
+
+// The map itself: seven parallel roads on each axis, 70 m apart.
 export const WORLD = {
-  roadSpacing: 70, // distance between parallel roads
-  roads: [-210, -140, -70, 0, 70, 140, 210], // road centre lines, both axes
+  roadSpacing: 70,
+  roads: [-210, -140, -70, 0, 70, 140, 210],
   roadWidth: 14,
-  cityHalf: 245, // playable bounds (buildings stop here)
-  beachZ: 252, // sand strip starts
-  seaZ: 292, // water plane starts
-  downtownHalf: 105, // blocks inside this are the tall downtown core
+  cityHalf: 245,
+  beachZ: 252,
+  seaZ: 292,
+  downtownHalf: 105,
 };
 
+// Light, sky and fog for the tropical afternoon look.
 export const TROPIC = {
   skyTop: 0x2f7fd0,
   skyBottom: 0xbfe6f2,
@@ -26,6 +43,7 @@ export const TROPIC = {
   fogFar: 620,
 };
 
+// Raka on foot.
 export const PLAYER_TUNING = {
   walkSpeed: 6.5,
   sprintSpeed: 10.5,
@@ -34,10 +52,11 @@ export const PLAYER_TUNING = {
   maxHealth: 100,
 };
 
+// Arcade car handling. maxSpeed 34 m/s is about 122 km/h.
 export const CAR_TUNING = {
   accel: 16,
   reverseAccel: 10,
-  maxSpeed: 34, // ~122 km/h
+  maxSpeed: 34,
   maxReverse: 9,
   steer: 1.9,
   brake: 30,
@@ -45,21 +64,13 @@ export const CAR_TUNING = {
   radius: 1.6,
 };
 
+// The wanted system: how many stars, how fast the chase, when the heat fades.
 export const POLICE_TUNING = {
   maxStars: 5,
   chaseSpeed: 30,
   bustDistance: 3.2,
   bustTime: 2.0,
-  decayDelay: 25, // seconds without crime before stars start falling
+  decayDelay: 25,
   decayInterval: 8,
   maxCars: 6,
 };
-
-export const TRAFFIC_COUNT = 14;
-export const PED_COUNT = 26;
-
-// Cash is shown in thousands of rupiah, e.g. 150 means "Rp 150rb".
-export const MISSION_REWARDS = [150, 200, 350, 500];
-
-export const CONTROLS_TEXT =
-  'WASD gerak / nyetir · Shift lari / nitro · E masuk-keluar mobil · F pukul · Spasi rem tangan · Esc jeda · M suara';

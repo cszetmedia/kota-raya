@@ -1,6 +1,9 @@
 // Kota Raya — the wanted system. Crimes raise stars; police cars spawn at
 // the edge of town, chase the player, ram the player's car, and bust the
 // player on foot if they stay close. Lay low and the heat fades.
+//
+// Spawn draw order (edge coin, axis coin, then one offset draw) is part of
+// the seeded city: keep it in this order.
 import { POLICE_TUNING, WORLD } from './config.js';
 import { makeCar } from './vehicles.js';
 import { resolveCollisions, clampToCity } from './city.js';
@@ -24,9 +27,10 @@ export function raiseWanted(wanted, amount, reason) {
   return reason;
 }
 
+// Bring one police car in on a road at the edge of town, roughly towards
+// the player.
 function spawnPoliceCar(wanted, rng, nearX, nearZ) {
   const mesh = makeCar(0xf2f2f2, true);
-  // Spawn on a road at the edge, roughly towards the player.
   const edge = rng() < 0.5 ? -1 : 1;
   const horizontal = rng() < 0.5;
   let x;
@@ -51,10 +55,16 @@ function removePoliceCar(wanted, car) {
   if (i >= 0) wanted.police.splice(i, 1);
 }
 
-/**
- * Chase update. Returns 'busted' when the police catch the player on foot,
- * otherwise null. `onRam` is called when a police car hits the player's car.
- */
+// Shortest signed turn from one heading towards another.
+function turnTowards(heading, target, maxStep) {
+  let diff = target - heading;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return heading + Math.max(-maxStep, Math.min(maxStep, diff));
+}
+
+// Chase update. Returns 'busted' when the police catch the player on foot,
+// otherwise null. `onRam` runs when a police car hits the player's car.
 export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
   const desired = wanted.stars === 0 ? 0 : Math.min(POLICE_TUNING.maxCars, wanted.stars + 1);
   while (wanted.police.length < desired) {
@@ -98,12 +108,7 @@ export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
     const dx = player.x - car.x;
     const dz = player.z - car.z;
     const dist = Math.hypot(dx, dz) || 1;
-    const targetHeading = Math.atan2(dx, dz);
-    let diff = targetHeading - car.heading;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    const turn = Math.max(-2.4 * dt, Math.min(2.4 * dt, diff));
-    car.heading += turn;
+    car.heading = turnTowards(car.heading, Math.atan2(dx, dz), 2.4 * dt);
     const speedTarget = dist > 60 ? POLICE_TUNING.chaseSpeed : POLICE_TUNING.chaseSpeed * 0.85;
     car.speed += (speedTarget - car.speed) * Math.min(1, dt * 1.5);
     car.x += Math.sin(car.heading) * car.speed * dt;
@@ -117,7 +122,7 @@ export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
 
     if (player.inCar) {
       if (dist < 3.4) {
-        // Ram: shove the player's car and slow it.
+        // Ram: shove the player's car and slow it down.
         if (player.car) {
           player.car.speed *= 0.55;
           player.car.x += (dx / dist) * 0.6;

@@ -23,7 +23,8 @@ import { loadSave, saveGame } from './save.js';
 
 export const STEP_SECONDS = 1 / 60;
 
-function makeSariNpc(scene) {
+// Sari, waiting in the park for mission 2.
+function buildSariNpc(scene) {
   const group = new THREE.Group();
   const skin = new THREE.MeshLambertMaterial({ color: 0xe8b898 });
   const shirt = new THREE.MeshLambertMaterial({ color: 0xe86a9a });
@@ -66,7 +67,7 @@ export function createWorld(canvas, seed) {
   targetCar.isTarget = true;
   parked.push(targetCar);
 
-  const sariNpc = makeSariNpc(scene);
+  const sariNpc = buildSariNpc(scene);
 
   const saved = loadSave();
   const world = {
@@ -131,6 +132,7 @@ export function createWorld(canvas, seed) {
     world.missions.index = Math.min(world.missionIndex, world.missions.missions.length - 1);
   }
 
+  // The nearest car the player could get into, within maxDist metres.
   function nearestCar(maxDist) {
     let best = null;
     let bestD = maxDist;
@@ -153,8 +155,7 @@ export function createWorld(canvas, seed) {
     }
     const car = nearestCar(5);
     if (!car) return;
-    const wasTraffic = traffic.includes(car);
-    if (wasTraffic) {
+    if (traffic.includes(car)) {
       // Stealing a car out of traffic: the driver bails, the heat rises.
       const i = traffic.indexOf(car);
       traffic.splice(i, 1);
@@ -210,17 +211,48 @@ export function createWorld(canvas, seed) {
     saveGame({ cash: world.cash, missionIndex: world.missions.index, storyDone: world.missions.done });
   }
 
-  /** One fixed 1/60 s step of the live game. `actions` are this frame's
-   * one-shot presses, already taken by the caller. Returns 'busted' when caught. */
+  // Keep the player's car from overlapping other cars: shove traffic aside,
+  // stop against parked cars, and cost speed and health on a hard hit.
+  function separatePlayerCar(dt) {
+    if (!player.inCar || !player.car) return;
+    for (const car of [...traffic, ...parked]) {
+      if (car === player.car || car.taken) continue;
+      const dx = car.mesh.position.x - player.car.x;
+      const dz = car.mesh.position.z - player.car.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= 4.6 || d <= 0.01) continue;
+      const push = 4.6 - d;
+      const nx = dx / d;
+      const nz = dz / d;
+      if (traffic.includes(car)) {
+        car.mesh.position.x += nx * push;
+        car.mesh.position.z += nz * push;
+        car.speed = Math.max(car.speed, Math.abs(player.car.speed) * 0.7);
+      } else {
+        // Parked cars do not move: stop the player instead.
+        player.car.x -= nx * push;
+        player.car.z -= nz * push;
+        player.car.mesh.position.set(player.car.x, 0, player.car.z);
+      }
+      if (Math.abs(player.car.speed) > 5 && world.ramCooldown <= 0) {
+        player.car.speed *= 0.6;
+        damagePlayer(5);
+        world.ramCooldown = 0.6;
+      }
+    }
+    if (world.ramCooldown > 0) world.ramCooldown -= dt;
+  }
+
+  // One fixed 1/60 s step of the live game. `actions` are this frame's
+  // one-shot presses, already taken by the caller. Returns 'busted' when caught.
   function step(dt, input, actions) {
     world.elapsed += dt;
     if (actions & 1) handleEnter(); // ACTION_ENTER
     if (actions & 2) handlePunch(); // ACTION_PUNCH
     if (actions & 8) audio.setMuted(!audio.isMuted()); // ACTION_MUTE
 
-    // Camera yaw follows the player's heading while driving, stays free on foot.
-    // On foot the camera yaw is the movement reference, so W always walks
-    // away from the camera, whichever way Raka is facing.
+    // The camera yaw follows the player's heading while driving; on foot it
+    // stays free, so W always walks away from the camera.
     const camYaw = player.inCar ? player.heading : renderer3.camState.yaw;
     if (player.inCar) {
       stepPlayerInCar(player, input, city.colliders, dt);
@@ -248,38 +280,7 @@ export function createWorld(canvas, seed) {
     }
     if (world.hitCooldown > 0) world.hitCooldown -= dt;
 
-    // Player car bumping traffic or parked cars: separate the pair so cars
-    // never overlap, and a hard hit costs speed and a little health.
-    if (player.inCar && player.car) {
-      for (const car of [...traffic, ...parked]) {
-        if (car === player.car || car.taken) continue;
-        const dx = car.mesh.position.x - player.car.x;
-        const dz = car.mesh.position.z - player.car.z;
-        const d = Math.hypot(dx, dz);
-        if (d < 4.6 && d > 0.01) {
-          const push = 4.6 - d;
-          const nx = dx / d;
-          const nz = dz / d;
-          if (traffic.includes(car)) {
-            // Shove the traffic car out of the way and match pace.
-            car.mesh.position.x += nx * push;
-            car.mesh.position.z += nz * push;
-            car.speed = Math.max(car.speed, Math.abs(player.car.speed) * 0.7);
-          } else {
-            // Parked cars do not move: stop the player instead.
-            player.car.x -= nx * push;
-            player.car.z -= nz * push;
-            player.car.mesh.position.set(player.car.x, 0, player.car.z);
-          }
-          if (Math.abs(player.car.speed) > 5 && world.ramCooldown <= 0) {
-            player.car.speed *= 0.6;
-            damagePlayer(5);
-            world.ramCooldown = 0.6;
-          }
-        }
-      }
-      if (world.ramCooldown > 0) world.ramCooldown -= dt;
-    }
+    separatePlayerCar(dt);
 
     // Pedestrians flee from the player's speeding car.
     const danger = player.inCar && player.car
@@ -298,7 +299,7 @@ export function createWorld(canvas, seed) {
     audio.sirenTick(dt);
     audio.engineSet(player.inCar ? Math.abs(player.car ? player.car.speed : 0) / 34 : 0, player.inCar);
 
-    // Health regen after 5 calm seconds (never revives a busted player).
+    // Health comes back after 5 calm seconds (never revives a busted player).
     if (player.health > 0 && world.elapsed - world.lastDamageAt > 5 && player.health < 100) {
       player.health = Math.min(100, player.health + 3 * dt);
     }
@@ -317,7 +318,7 @@ export function createWorld(canvas, seed) {
     return null;
   }
 
-  /** Title-screen backdrop: traffic and pedestrians drift, no crimes. */
+  // Title-screen backdrop: traffic and pedestrians drift, no crimes.
   function stepAmbient(dt) {
     world.elapsed += dt;
     updateTraffic(traffic, dt, []);

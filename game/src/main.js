@@ -10,7 +10,7 @@ import { createInput, ACTION_CONFIRM, ACTION_PAUSE } from './input.js';
 import { CONTROLS_TEXT } from './config.js';
 import { stageShot } from './shots.js';
 
-/** The longest frame the loop catches up on; a longer stall is dropped. */
+// The longest frame the loop catches up on; a longer stall is dropped.
 const MAX_FRAME = 0.25;
 
 const params = new URLSearchParams(window.location.search);
@@ -18,6 +18,7 @@ const shot = params.get('shot');
 const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
 const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
 
+// The DOM the boot code owns: canvas, screens, buttons, status line.
 const canvas = document.getElementById('game');
 const status = document.getElementById('status');
 const hudEl = document.getElementById('hud');
@@ -36,6 +37,7 @@ const { world } = game;
 // Debug handle: lets a play-test read positions and state from the console.
 window.__kotaRaya = game;
 
+// Show exactly one screen; the HUD only lives on the play screen.
 function showOnly(screen) {
   titleScreen.style.display = screen === 'title' ? 'flex' : 'none';
   pauseScreen.style.display = screen === 'paused' ? 'flex' : 'none';
@@ -47,6 +49,7 @@ function announce(message) {
   status.textContent = message;
 }
 
+// Stage one screenshot scene, paint it, and signal readiness.
 function runShot(name) {
   const screen = stageShot(name, game);
   showOnly(screen);
@@ -65,15 +68,15 @@ function runGame() {
   let last = performance.now();
   let orbitTime = 0;
 
+  // Title screen copy, including the save line when progress exists.
   controlsEl.textContent = CONTROLS_TEXT;
   const savedCash = world.cash;
+  const hasProgress = savedCash > 0 || world.missions.index > 0 || world.storyDone;
   const savedMission = world.missions.index + 1;
-  saveLine.textContent = savedCash > 0 || world.missions.index > 0 || world.storyDone
+  saveLine.textContent = hasProgress
     ? `Save ditemukan: Rp ${savedCash}rb · misi ${world.storyDone ? 'selesai' : savedMission} dari 4`
     : 'Tidak ada save — cerita baru dimulai.';
-  startButton.textContent = savedCash > 0 || world.missions.index > 0 || world.storyDone
-    ? 'LANJUTKAN'
-    : 'MULAI';
+  startButton.textContent = hasProgress ? 'LANJUTKAN' : 'MULAI';
   showOnly('title');
   announce('Kota Raya. Tekan Enter atau klik Mulai.');
 
@@ -103,6 +106,7 @@ function runGame() {
     announce('Ketangkap! Tekan Enter untuk lanjut.');
   }
 
+  // What Enter does depends on the screen it is pressed on.
   function confirmPressed() {
     if (screen === 'title') {
       startGame();

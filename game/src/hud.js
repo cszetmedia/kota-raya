@@ -3,6 +3,8 @@
 // police, mission marker). All DOM lives in index.html; this module updates it.
 import { WORLD } from './config.js';
 
+const MAP_SIZE = 180; // the minimap canvas is 180x180, showing the whole map
+
 export function createHud() {
   const el = (id) => document.getElementById(id);
   const objective = el('objective');
@@ -19,26 +21,25 @@ export function createHud() {
   let toastTimer = 0;
   let bannerTimer = 0;
 
-  function drawMinimap(state) {
-    const size = 180;
-    const scale = size / 560;
-    const toMap = (v) => (v + 280) * scale;
-    mapCtx.clearRect(0, 0, size, size);
-    // Sea and sand.
+  const toMap = (v) => (v + 280) * (MAP_SIZE / 560);
+
+  function paintMinimap(state) {
+    mapCtx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
+    // Sea, sand and land.
     mapCtx.fillStyle = '#2fa8c8';
-    mapCtx.fillRect(0, toMap(WORLD.seaZ), size, size - toMap(WORLD.seaZ));
+    mapCtx.fillRect(0, toMap(WORLD.seaZ), MAP_SIZE, MAP_SIZE - toMap(WORLD.seaZ));
     mapCtx.fillStyle = '#e8d8a0';
-    mapCtx.fillRect(0, toMap(WORLD.beachZ), size, toMap(WORLD.seaZ) - toMap(WORLD.beachZ));
-    // Land.
+    mapCtx.fillRect(0, toMap(WORLD.beachZ), MAP_SIZE, toMap(WORLD.seaZ) - toMap(WORLD.beachZ));
     mapCtx.fillStyle = '#b8a888';
-    mapCtx.fillRect(0, 0, size, toMap(WORLD.beachZ));
+    mapCtx.fillRect(0, 0, MAP_SIZE, toMap(WORLD.beachZ));
     // Roads.
     mapCtx.fillStyle = '#3a3f46';
+    const scale = MAP_SIZE / 560;
     for (const r of WORLD.roads) {
       mapCtx.fillRect(toMap(r - WORLD.roadWidth / 2), 0, WORLD.roadWidth * scale, toMap(WORLD.beachZ));
-      mapCtx.fillRect(0, toMap(r - WORLD.roadWidth / 2), size, WORLD.roadWidth * scale);
+      mapCtx.fillRect(0, toMap(r - WORLD.roadWidth / 2), MAP_SIZE, WORLD.roadWidth * scale);
     }
-    // Mission marker.
+    // The mission marker, pulsing.
     if (state.missionTarget) {
       const mx = toMap(state.missionTarget.x);
       const my = toMap(state.missionTarget.z);
@@ -51,7 +52,7 @@ export function createHud() {
       mapCtx.lineWidth = 2;
       mapCtx.stroke();
     }
-    // Traffic (white dots) and police (flashing blue/red).
+    // Traffic as white dots, police as flashing blue/red dots.
     const flash = Math.floor(performance.now() / 300) % 2 === 0;
     for (const car of state.traffic) {
       mapCtx.fillStyle = '#ffffff';
@@ -63,7 +64,7 @@ export function createHud() {
       mapCtx.arc(toMap(car.x), toMap(car.z), 4, 0, Math.PI * 2);
       mapCtx.fill();
     }
-    // Player arrow (rotates with heading).
+    // The player arrow, rotated to the heading.
     const px = toMap(state.playerX);
     const py = toMap(state.playerZ);
     mapCtx.save();
@@ -125,7 +126,7 @@ export function createHud() {
       health.textContent = `❤ ${Math.ceil(state.health)}`;
       health.style.color = state.health < 30 ? '#ff5a5a' : '#ffffff';
       speed.textContent = state.inCar ? `${Math.round(state.speedKmh)} km/j` : '';
-      drawMinimap(state);
+      paintMinimap(state);
     },
   };
 }
