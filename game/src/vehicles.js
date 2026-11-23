@@ -1,17 +1,18 @@
-// Kota Raya — cars. A box-built car factory, the traffic that drives the
-// grid, and the parked cars the player can steal. Traffic follows road lanes
-// and slows for the car ahead; parked cars sit at the kerb until taken.
+// Kota Raya — mobil. Pabrik mobil dari balok, lalu lintas yang mengitari
+// grid, dan mobil parkir yang bisa dicuri pemain. Lalu lintas mengikuti
+// lajur jalan dan melambat untuk mobil di depannya; mobil parkir duduk di
+// tepi jalan sampai diambil.
 //
-// The traffic draw order (taxi coin, colour, axis, road, direction, speeds,
-// position) is part of the seeded city: keep it in this order.
+// Urutan undian lalu lintas (koin taksi, warna, sumbu, jalan, arah,
+// kecepatan, posisi) adalah bagian dari kota ber-seed: jaga urutan ini.
 import { WORLD, CAR_TUNING } from './config.js';
 import { pick, range } from './random.js';
 
 export const CAR_COLORS = [0xd8382c, 0x2c6fd8, 0xf2c200, 0x2cd8a0, 0xe8e8e8, 0x30343a, 0xd86a2c, 0x8a4fd8];
 const TAXI_COLOR = 0xf2c200;
 
-// Build a simple car from boxes: body, cabin, wheels, lights, and for
-// police cars a door band and a flashing light bar.
+// Rakit mobil sederhana dari balok: bodi, kabin, roda, lampu, dan untuk
+// mobil polisi ada pita pintu dan palang lampu yang berkedip.
 export function makeCar(color, isPolice = false, isTaxi = false) {
   const group = new THREE.Group();
   const paint = isPolice ? 0xf2f2f2 : color;
@@ -89,7 +90,8 @@ export function makeCar(color, isPolice = false, isTaxi = false) {
   return group;
 }
 
-// Traffic: cars that loop the road grid in lanes, slowing for the car ahead.
+// Lalu lintas: mobil yang mengitari grid jalan di lajurnya, melambat
+// untuk mobil di depan.
 export function createTraffic(scene, rng, count) {
   const cars = [];
   for (let i = 0; i < count; i += 1) {
@@ -121,7 +123,7 @@ export function createTraffic(scene, rng, count) {
 
 export function updateTraffic(cars, dt, obstacles) {
   for (const car of cars) {
-    // Ease towards cruise speed, or slower when something is ahead.
+    // Merapat ke kecepatan jelajah, atau lebih pelan bila ada yang di depan.
     let target = car.baseSpeed;
     const lookAhead = 10;
     for (const other of cars) {
@@ -148,12 +150,13 @@ export function updateTraffic(cars, dt, obstacles) {
       if (car.mesh.position.z > 250) car.mesh.position.z = -245;
       if (car.mesh.position.z < -245) car.mesh.position.z = 250;
     }
-    // A gentle bob with speed, as a stand-in for spinning wheels.
+    // Goyangan halus mengikuti kecepatan, pengganti roda yang berputar.
     car.mesh.position.y = Math.sin((car.mesh.position.x + car.mesh.position.z) * 0.5) * 0.02 * (car.speed / 12);
   }
 }
 
-// Parked cars at the kerb: stealable, and the mission target is one of them.
+// Mobil parkir di tepi jalan: bisa dicuri, dan mobil target misi adalah
+// salah satunya.
 export function createParkedCars(scene, rng, spots) {
   const cars = [];
   for (const spot of spots) {
@@ -166,7 +169,7 @@ export function createParkedCars(scene, rng, spots) {
   return cars;
 }
 
-// Arcade car physics: accelerate, steer, brake, reverse, handbrake.
+// Fisika mobil arcade: gas, setir, rem, mundur, rem tangan.
 export function createDriveState() {
   return { speed: 0, heading: 0, x: 0, z: 0, steering: 0 };
 }

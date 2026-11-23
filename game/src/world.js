@@ -1,6 +1,7 @@
-// Kota Raya — the world: assembles city, traffic, pedestrians, player, police
-// and missions into one simulation, and advances it one fixed step at a time.
-// This is the only module that knows how the systems touch each other.
+// Kota Raya — dunia: merakit kota, lalu lintas, pejalan kaki, pemain,
+// polisi, dan misi menjadi satu simulasi, lalu memajukannya satu langkah
+// tetap dalam satu waktu. Ini satu-satunya modul yang tahu bagaimana
+// sistem-sistem itu saling bersentuhan.
 import { TRAFFIC_COUNT, PED_COUNT } from './config.js';
 import { createRandom } from './random.js';
 import { createRenderer3 } from './render.js';
@@ -23,7 +24,7 @@ import { loadSave, saveGame } from './save.js';
 
 export const STEP_SECONDS = 1 / 60;
 
-// Sari, waiting in the park for mission 2.
+// Sari, menunggu di taman untuk misi 2.
 function buildSariNpc(scene) {
   const group = new THREE.Group();
   const skin = new THREE.MeshLambertMaterial({ color: 0xe8b898 });
@@ -58,11 +59,11 @@ export function createWorld(canvas, seed) {
   const audio = createAudio();
   const hud = createHud();
 
-  // The starter ride: Raka's own blue sedan, parked just ahead of the spawn
-  // point so the player sees it as soon as the game starts.
+  // Kendaraan awal: sedan biru milik Raka, parkir tepat di depan titik
+  // muncul supaya pemain langsung melihatnya saat game dimulai.
   const starterCar = spawnPlayerCar(scene, 0x2c6fd8, 7, -169, Math.PI);
   parked.push(starterCar);
-  // The mission target: a red sedan parked downtown.
+  // Target misi: sedan merah yang parkir di pusat kota.
   const targetCar = spawnPlayerCar(scene, 0xd8382c, 70, -70, Math.PI / 2);
   targetCar.isTarget = true;
   parked.push(targetCar);
@@ -132,7 +133,7 @@ export function createWorld(canvas, seed) {
     world.missions.index = Math.min(world.missionIndex, world.missions.missions.length - 1);
   }
 
-  // The nearest car the player could get into, within maxDist metres.
+  // Mobil terdekat yang bisa dimasuki pemain, dalam jarak maxDist meter.
   function nearestCar(maxDist) {
     let best = null;
     let bestD = maxDist;
@@ -156,7 +157,7 @@ export function createWorld(canvas, seed) {
     const car = nearestCar(5);
     if (!car) return;
     if (traffic.includes(car)) {
-      // Stealing a car out of traffic: the driver bails, the heat rises.
+      // Mencuri mobil dari lalu lintas: sopirnya kabur, panasnya naik.
       const i = traffic.indexOf(car);
       traffic.splice(i, 1);
       car.speed = 0;
@@ -211,8 +212,9 @@ export function createWorld(canvas, seed) {
     saveGame({ cash: world.cash, missionIndex: world.missions.index, storyDone: world.missions.done });
   }
 
-  // Keep the player's car from overlapping other cars: shove traffic aside,
-  // stop against parked cars, and cost speed and health on a hard hit.
+  // Jaga mobil pemain tidak bertumpuk dengan mobil lain: dorong lalu lintas
+  // ke samping, berhenti menabrak mobil parkir, dan kenakan kecepatan serta
+  // nyawa pada benturan keras.
   function separatePlayerCar(dt) {
     if (!player.inCar || !player.car) return;
     for (const car of [...traffic, ...parked]) {
@@ -229,7 +231,7 @@ export function createWorld(canvas, seed) {
         car.mesh.position.z += nz * push;
         car.speed = Math.max(car.speed, Math.abs(player.car.speed) * 0.7);
       } else {
-        // Parked cars do not move: stop the player instead.
+        // Mobil parkir tidak bergerak: hentikan pemain sebagai gantinya.
         player.car.x -= nx * push;
         player.car.z -= nz * push;
         player.car.mesh.position.set(player.car.x, 0, player.car.z);
@@ -243,16 +245,17 @@ export function createWorld(canvas, seed) {
     if (world.ramCooldown > 0) world.ramCooldown -= dt;
   }
 
-  // One fixed 1/60 s step of the live game. `actions` are this frame's
-  // one-shot presses, already taken by the caller. Returns 'busted' when caught.
+  // Satu langkah tetap 1/60 detik dari game yang sedang berjalan. `actions`
+  // adalah tekanan sekali-sentuh pada frame ini, yang sudah diambil pemanggil.
+  // Mengembalikan 'busted' saat tertangkap.
   function step(dt, input, actions) {
     world.elapsed += dt;
     if (actions & 1) handleEnter(); // ACTION_ENTER
     if (actions & 2) handlePunch(); // ACTION_PUNCH
     if (actions & 8) audio.setMuted(!audio.isMuted()); // ACTION_MUTE
 
-    // The camera yaw follows the player's heading while driving; on foot it
-    // stays free, so W always walks away from the camera.
+    // Arah kamera mengikuti arah hadap pemain saat menyetir; saat berjalan
+    // kaki ia tetap bebas, supaya W selalu berjalan menjauhi kamera.
     const camYaw = player.inCar ? player.heading : renderer3.camState.yaw;
     if (player.inCar) {
       stepPlayerInCar(player, input, city.colliders, dt);
@@ -260,13 +263,13 @@ export function createWorld(canvas, seed) {
       stepPlayerOnFoot(player, input, camYaw, city.colliders, dt);
     }
 
-    // Traffic avoids the player's car and the police.
+    // Lalu lintas menghindari mobil pemain dan polisi.
     const obstacles = [];
     if (player.inCar && player.car) obstacles.push({ x: player.car.x, z: player.car.z });
     for (const pc of wanted.police) obstacles.push({ x: pc.x, z: pc.z });
     updateTraffic(traffic, dt, obstacles);
 
-    // Traffic hitting the player on foot hurts.
+    // Lalu lintas yang menabrak pemain saat berjalan kaki melukai.
     if (!player.inCar && world.hitCooldown <= 0) {
       for (const car of traffic) {
         const d = Math.hypot(car.mesh.position.x - player.x, car.mesh.position.z - player.z);
@@ -282,13 +285,13 @@ export function createWorld(canvas, seed) {
 
     separatePlayerCar(dt);
 
-    // Pedestrians flee from the player's speeding car.
+    // Pejalan kaki lari dari mobil pemain yang melaju kencang.
     const danger = player.inCar && player.car
       ? { x: player.car.x, z: player.car.z, speed: player.car.speed }
       : null;
     updatePedestrians(peds, dt, danger);
 
-    // Police chase, ram, bust.
+    // Polisi mengejar, menabrak, menangkap.
     const busted = updateWanted(wanted, dt, player, city.colliders, rng, () => {
       if (world.ramCooldown <= 0) {
         audio.thud();
@@ -299,12 +302,12 @@ export function createWorld(canvas, seed) {
     audio.sirenTick(dt);
     audio.engineSet(player.inCar ? Math.abs(player.car ? player.car.speed : 0) / 34 : 0, player.inCar);
 
-    // Health comes back after 5 calm seconds (never revives a busted player).
+    // Nyawa pulih setelah 5 detik tenang (tidak pernah membangkitkan pemain yang tertangkap).
     if (player.health > 0 && world.elapsed - world.lastDamageAt > 5 && player.health < 100) {
       player.health = Math.min(100, player.health + 3 * dt);
     }
 
-    // Missions.
+    // Misi.
     world.missions.update(dt, world);
 
     if (busted === 'busted') {
@@ -318,7 +321,7 @@ export function createWorld(canvas, seed) {
     return null;
   }
 
-  // Title-screen backdrop: traffic and pedestrians drift, no crimes.
+  // Latar layar judul: lalu lintas dan pejalan kaki bergerak, tanpa kejahatan.
   function stepAmbient(dt) {
     world.elapsed += dt;
     updateTraffic(traffic, dt, []);

@@ -1,16 +1,17 @@
-// Kota Raya — pedestrians: simple walkers on the sidewalks who stroll their
-// block, flee from a speeding car, and fall over when punched. Hitting one
-// with a car or a fist is a crime the wanted system notices.
+// Kota Raya — pejalan kaki: pejalan sederhana di trotoar yang menyusuri
+// bloknya, lari dari mobil yang melaju kencang, dan terjatuh saat dipukul.
+// Menabrak mereka dengan mobil atau tinju adalah kejahatan yang dicatat
+// sistem wanted.
 //
-// Draw order per walker (skin, shirt, road, lane, start, direction, speed,
-// phase) is part of the seeded city: keep it in this order.
+// Urutan undian per pejalan (kulit, baju, jalan, lajur, titik awal, arah,
+// kecepatan, fase) adalah bagian dari kota ber-seed: jaga urutan ini.
 import { WORLD } from './config.js';
 import { pick, range } from './random.js';
 
 const SHIRT_COLORS = [0xe86a6a, 0x6aa8e8, 0x6ae8a0, 0xf2d24b, 0xd86ad8, 0x8ad8e8, 0xe8e8e8];
 const SKIN_COLORS = [0xc89878, 0x8a5a3a, 0xe8b898, 0x6a4530];
 
-// One boxy walker with swinging limbs.
+// Satu pejalan kotak dengan anggota badan yang mengayun.
 function buildPed(rng) {
   const group = new THREE.Group();
   const skin = new THREE.MeshLambertMaterial({ color: pick(rng, SKIN_COLORS) });
@@ -45,7 +46,7 @@ export function createPedestrians(scene, rng, count) {
   const peds = [];
   for (let i = 0; i < count; i += 1) {
     const mesh = buildPed(rng);
-    // Walk along a sidewalk edge of a random block.
+    // Berjalan di sepanjang tepi trotoar sebuah blok acak.
     const roadX = pick(rng, WORLD.roads);
     const roadZ = pick(rng, WORLD.roads);
     const horizontal = rng() < 0.5;
@@ -59,8 +60,8 @@ export function createPedestrians(scene, rng, count) {
       dir: rng() < 0.5 ? 1 : -1,
       speed: range(rng, 1.1, 2.0),
       phase: rng() * Math.PI * 2,
-      down: 0, // seconds spent knocked down
-      flee: 0, // seconds spent fleeing
+      down: 0, // detik saat terjatuh
+      flee: 0, // detik saat melarikan diri
     };
     mesh.position.set(horizontal ? start : roadX + lane, 0, horizontal ? roadZ + lane : start);
     mesh.rotation.y = horizontal ? (ped.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : ped.dir > 0 ? 0 : Math.PI;
@@ -90,7 +91,7 @@ export function updatePedestrians(peds, dt, danger) {
       ped.mesh.position.y = stillDown ? 0.3 : 0;
       continue;
     }
-    // Flee from a fast car nearby.
+    // Lari dari mobil kencang di dekatnya.
     let fleeX = 0;
     let fleeZ = 0;
     if (danger) {
@@ -130,7 +131,8 @@ export function updatePedestrians(peds, dt, danger) {
   }
 }
 
-// Knock a pedestrian down; returns the ped, or null when nobody is close.
+// Jatuhkan seorang pejalan; mengembalikan pejalan itu, atau null bila
+// tidak ada yang cukup dekat.
 export function punchPedestrian(peds, x, z, radius) {
   let best = null;
   let bestD = radius;

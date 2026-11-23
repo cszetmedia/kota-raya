@@ -1,14 +1,15 @@
-// Kota Raya — screenshot scenes behind ?shot=start|drive|chase|mission.
-// Each one plays the real rules forward from a fresh world for a few seconds
-// with a simple autopilot, so the frame is what a short game really looks
-// like and the same seed always gives the same frame. Sets window.__shotReady
-// when the scene is painted, which the screenshot script waits for.
+// Kota Raya — adegan screenshot di balik ?shot=start|drive|chase|mission.
+// Masing-masing memainkan aturan asli ke depan dari dunia baru selama
+// beberapa detik dengan autopilot sederhana, jadi framenya adalah tampilan
+// game sungguhan yang singkat, dan seed yang sama selalu menghasilkan
+// frame yang sama. Mengatur window.__shotReady saat adegan sudah
+// digambar, yang ditunggu oleh skrip screenshot.
 import { raiseWanted } from './police.js';
 import { enterCar } from './player.js';
 
 const STEP = 1 / 60;
 
-// A fixed fake input: constant throttle and steering, no one-shot presses.
+// Input palsu yang tetap: throttle dan setir konstan, tanpa tekanan sekali.
 function fakeInput(throttle, steer) {
   return {
     throttle: () => throttle,
@@ -27,12 +28,12 @@ function driveInput() {
   return fakeInput(1, 0);
 }
 
-// Run the world forward a number of fixed steps with the given input.
+// Majukan dunia sejumlah langkah tetap dengan input yang diberikan.
 function runSteps(game, count, input) {
   for (let i = 0; i < count; i += 1) game.step(STEP, input, 0);
 }
 
-// Put Raka in the starter car at a spot, already moving.
+// Tempatkan Raka di mobil starter pada satu titik, sudah melaju.
 function placeInCar(world, x, z, speed) {
   const car = world.starterCar;
   const player = world.player;
@@ -47,14 +48,14 @@ function placeInCar(world, x, z, speed) {
   enterCar(player, car, world.scene);
 }
 
-// Stage `game` to the named scene and paint it. Returns the screen name.
+// Tata `game` ke adegan yang dinamai lalu gambar. Mengembalikan nama layar.
 export function stageShot(name, game) {
   const { world } = game;
   const player = world.player;
   const missions = world.missions;
 
   if (name === 'drive') {
-    // Raka driving his blue sedan down the eastern avenue, traffic around him.
+    // Raka menyetir sedan birunya menyusuri jalan timur, lalu lintas di sekitarnya.
     placeInCar(world, 70, -140, 18);
     runSteps(game, 150, driveInput());
     game.renderer3.snap(player.car, true);
@@ -64,13 +65,14 @@ export function stageShot(name, game) {
   }
 
   if (name === 'chase') {
-    // Wanted level 3: three police cars hunting Raka's sedan down the avenue.
+    // Wanted level 3: tiga mobil polisi memburu sedan Raka di jalan.
     placeInCar(world, 70, -60, 24);
     raiseWanted(world.wanted, 3, 'shot-chase');
     world.audio.siren(true);
     runSteps(game, 210, driveInput());
-    // A roadblock: one police car ahead, coming at the player, so the chase
-    // reads in a single frame instead of hiding behind the camera.
+    // Penghalang jalan: satu mobil polisi di depan, datang ke arah pemain,
+    // supaya kejar-kejaran terbaca dalam satu frame, bukan tersembunyi di
+    // belakang kamera.
     const blocker = world.wanted.police[0];
     if (blocker) {
       blocker.x = player.x - 6;
@@ -87,12 +89,12 @@ export function stageShot(name, game) {
   }
 
   if (name === 'mission') {
-    // Mission 3, "Mobil Pesanan": Raka on foot by the red sedan downtown,
-    // the yellow beacon marking it, police-free for the moment.
+    // Misi 3, "Mobil Pesanan": Raka berjalan kaki di dekat sedan merah di
+    // pusat kota, beacon kuning menandainya, untuk sementara tanpa polisi.
     missions.startMission(2);
     player.x = 58;
     player.z = -58;
-    // Face the red sedan parked downtown (north-east of the player).
+    // Menghadap sedan merah yang terparkir di pusat kota (timur laut pemain).
     player.heading = Math.PI * 3 / 4;
     player.mesh.position.set(player.x, 0, player.z);
     player.mesh.rotation.y = player.heading;
@@ -103,7 +105,7 @@ export function stageShot(name, game) {
     return 'play';
   }
 
-  // Default: start — a slow orbit over downtown behind the title screen.
+  // Default: start — orbit pelan di atas pusat kota di balik layar judul.
   for (let i = 0; i < 120; i += 1) game.stepAmbient(STEP);
   game.renderer3.orbit(9);
   game.renderer3.render();

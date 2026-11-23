@@ -1,12 +1,16 @@
-// Kota Raya — the player: Raka, a young driver from Kampung Melati. On foot
-// he walks and sprints with a swinging stride and can punch; near a car he
-// can get in (stealing a traffic car or a parked car is a crime) and drive it
-// with arcade physics. Getting out parks the car where it stops.
+// Kota Raya — pemain: Raka, pengemudi muda dari Kampung Melati. Di jalan
+// kaki dia berjalan dan berlari dengan langkah mengayun dan bisa memukul;
+// di dekat mobil dia bisa masuk (mencuri mobil lalu lintas atau mobil
+// parkir adalah kejahatan) lalu menyetir dengan fisika arcade. Keluar dari
+// mobil berarti mobilnya berhenti di tempat itu.
+//
+// Gerak kaki relatif terhadap arah kamera: W selalu berjalan menjauhi
+// kamera, dan badan Raka berputar halus mengikuti arah geraknya.
 import { PLAYER_TUNING, CAR_TUNING } from './config.js';
 import { makeCar } from './vehicles.js';
 import { resolveCollisions, clampToCity } from './city.js';
 
-// Raka: red cap, blue jacket, jeans.
+// Raka: topi merah, jaket biru, celana jeans.
 function buildRaka() {
   const group = new THREE.Group();
   const skin = new THREE.MeshLambertMaterial({ color: 0xc89878 });
@@ -55,7 +59,7 @@ export function createPlayer(scene, x, z) {
     speed: 0,
     health: PLAYER_TUNING.maxHealth,
     inCar: false,
-    car: null, // the driven car object {mesh, x, z, heading, speed, ...}
+    car: null, // mobil yang sedang dikemudikan {mesh, x, z, heading, speed, ...}
     carMesh: null,
     phase: 0,
     punchCooldown: 0,
@@ -77,13 +81,13 @@ function animateWalk(player, moving) {
   if (player.punchAnim > 0 && armR) armR.rotation.x = -1.6;
 }
 
-// Move on foot: WASD relative to the camera yaw, sprint with Shift.
+// Jalan kaki: WASD relatif terhadap arah kamera, Shift untuk lari.
 export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
   const throttle = input.throttle();
   const steer = input.steer();
   const sprint = input.sprint();
   const speed = sprint ? PLAYER_TUNING.sprintSpeed : PLAYER_TUNING.walkSpeed;
-  // Forward is where the camera looks; sideways is the strafe axis.
+  // Maju adalah arah pandangan kamera; samping adalah sumbu strafe.
   const fx = Math.sin(cameraYaw);
   const fz = Math.cos(cameraYaw);
   const rx = Math.cos(cameraYaw);
@@ -97,7 +101,7 @@ export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
     mz /= len;
     player.x += mx * speed * dt;
     player.z += mz * speed * dt;
-    // Ease the facing towards the movement direction, fastest when turning.
+    // Putar badan ke arah gerak dengan halus, paling cepat saat berbelok.
     let diff = Math.atan2(mx, mz) - player.heading;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
@@ -120,7 +124,7 @@ export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
   if (player.invulnerable > 0) player.invulnerable -= dt;
 }
 
-// Drive the player's car with arcade physics and building collision.
+// Menyetir mobil pemain dengan fisika arcade dan tabrakan gedung.
 export function stepPlayerInCar(player, input, colliders, dt) {
   const car = player.car;
   const drive = { speed: car.speed, heading: car.heading, x: car.x, z: car.z };
@@ -143,7 +147,7 @@ export function stepPlayerInCar(player, input, colliders, dt) {
   drive.z += Math.cos(drive.heading) * drive.speed * dt;
   const clamped = clampToCity(drive.x, drive.z);
   const resolved = resolveCollisions(colliders, clamped.x, clamped.z, CAR_TUNING.radius);
-  // A hard stop against a wall kills most of the speed.
+  // Berhenti keras menabrak dinding membunuh sebagian besar kecepatan.
   if (Math.hypot(resolved.x - drive.x, resolved.z - drive.z) > 0.05) {
     drive.speed *= 0.4;
   }
@@ -160,12 +164,12 @@ export function stepPlayerInCar(player, input, colliders, dt) {
   return car;
 }
 
-// Take over a car mesh as the player's ride.
+// Ambil alih sebuah mobil sebagai kendaraan pemain.
 export function enterCar(player, car, scene) {
   if (car.taken) return false;
   car.taken = true;
   if (car.driver) {
-    // The driver bails out and runs: the traffic car leaves its lane.
+    // Sopirnya kabur dan lari: mobil lalu lintas itu keluar dari lajurnya.
     car.driver = false;
   }
   player.car = car;
@@ -180,7 +184,7 @@ export function enterCar(player, car, scene) {
   return true;
 }
 
-// Step out beside the car; the car stays where it stopped.
+// Keluar di samping mobil; mobilnya tetap di tempat ia berhenti.
 export function exitCar(player, scene) {
   const car = player.car;
   if (!car) return;
@@ -195,7 +199,7 @@ export function exitCar(player, scene) {
   car.speed = 0;
 }
 
-// Build a fresh player car at a spot (mission cars, the starter ride).
+// Bangun mobil pemain baru di satu titik (mobil misi, kendaraan awal).
 export function spawnPlayerCar(scene, color, x, z, heading) {
   const mesh = makeCar(color);
   mesh.position.set(x, 0, z);

@@ -1,9 +1,10 @@
-// Kota Raya — the HUD: mission objective, cash, wanted stars, health, speed,
-// dialog subtitles, toasts, and a live 2D minimap (roads, player, traffic,
-// police, mission marker). All DOM lives in index.html; this module updates it.
+// Kota Raya — HUD: objektif misi, uang, bintang wanted, nyawa, kecepatan,
+// subtitle dialog, toast, dan minimap 2D yang hidup (jalan, pemain, lalu
+// lintas, polisi, penanda misi). Semua DOM tinggal di index.html; modul
+// ini yang memperbaruinya.
 import { WORLD } from './config.js';
 
-const MAP_SIZE = 180; // the minimap canvas is 180x180, showing the whole map
+const MAP_SIZE = 180; // kanvas minimap 180x180, menampilkan seluruh peta
 
 export function createHud() {
   const el = (id) => document.getElementById(id);
@@ -25,21 +26,21 @@ export function createHud() {
 
   function paintMinimap(state) {
     mapCtx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
-    // Sea, sand and land.
+    // Laut, pasir, dan daratan.
     mapCtx.fillStyle = '#2fa8c8';
     mapCtx.fillRect(0, toMap(WORLD.seaZ), MAP_SIZE, MAP_SIZE - toMap(WORLD.seaZ));
     mapCtx.fillStyle = '#e8d8a0';
     mapCtx.fillRect(0, toMap(WORLD.beachZ), MAP_SIZE, toMap(WORLD.seaZ) - toMap(WORLD.beachZ));
     mapCtx.fillStyle = '#b8a888';
     mapCtx.fillRect(0, 0, MAP_SIZE, toMap(WORLD.beachZ));
-    // Roads.
+    // Jalan-jalan.
     mapCtx.fillStyle = '#3a3f46';
     const scale = MAP_SIZE / 560;
     for (const r of WORLD.roads) {
       mapCtx.fillRect(toMap(r - WORLD.roadWidth / 2), 0, WORLD.roadWidth * scale, toMap(WORLD.beachZ));
       mapCtx.fillRect(0, toMap(r - WORLD.roadWidth / 2), MAP_SIZE, WORLD.roadWidth * scale);
     }
-    // The mission marker, pulsing.
+    // Penanda misi, berdenyut.
     if (state.missionTarget) {
       const mx = toMap(state.missionTarget.x);
       const my = toMap(state.missionTarget.z);
@@ -52,7 +53,7 @@ export function createHud() {
       mapCtx.lineWidth = 2;
       mapCtx.stroke();
     }
-    // Traffic as white dots, police as flashing blue/red dots.
+    // Lalu lintas sebagai titik putih, polisi sebagai titik biru/merah berkedip.
     const flash = Math.floor(performance.now() / 300) % 2 === 0;
     for (const car of state.traffic) {
       mapCtx.fillStyle = '#ffffff';
@@ -64,7 +65,7 @@ export function createHud() {
       mapCtx.arc(toMap(car.x), toMap(car.z), 4, 0, Math.PI * 2);
       mapCtx.fill();
     }
-    // The player arrow, rotated to the heading.
+    // Panah pemain, diputar mengikuti arah hadap.
     const px = toMap(state.playerX);
     const py = toMap(state.playerZ);
     mapCtx.save();
@@ -82,7 +83,7 @@ export function createHud() {
     mapCtx.fill();
     mapCtx.stroke();
     mapCtx.restore();
-    // North tick.
+    // Tanda utara.
     mapCtx.fillStyle = 'rgba(255,255,255,0.9)';
     mapCtx.font = 'bold 11px system-ui, sans-serif';
     mapCtx.fillText('U', 6, 14);

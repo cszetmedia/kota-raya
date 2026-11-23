@@ -1,6 +1,6 @@
-// Kota Raya — the three.js renderer: tropical sky, warm sun with shadows,
-// fog, and a smoothed third-person camera that follows the player on foot
-// and pulls back behind the car when driving.
+// Kota Raya — renderer three.js: langit tropis, matahari hangat dengan
+// bayangan, kabut, dan kamera third-person yang diperhalus, mengikuti
+// pemain saat berjalan kaki dan menarik ke belakang mobil saat menyetir.
 import { TROPIC } from './config.js';
 
 export function createRenderer3(canvas) {
@@ -16,7 +16,7 @@ export function createRenderer3(canvas) {
   scene.background = new THREE.Color(TROPIC.skyBottom);
   scene.fog = new THREE.Fog(TROPIC.fogColor, TROPIC.fogNear, TROPIC.fogFar);
 
-  // A gradient sky dome, deep blue at the top fading to pale haze.
+  // Kubah langit bergradien, biru tua di atas memudar ke kabut pucat.
   const skyCanvas = document.createElement('canvas');
   skyCanvas.width = 4;
   skyCanvas.height = 256;
@@ -36,7 +36,7 @@ export function createRenderer3(canvas) {
   );
   scene.add(sky);
 
-  // The afternoon sun, with a wide shadow camera over the whole city.
+  // Matahari sore, dengan kamera bayangan lebar menutupi seluruh kota.
   const sun = new THREE.DirectionalLight(TROPIC.sunColor, TROPIC.sunIntensity);
   sun.position.set(140, 220, 80);
   sun.castShadow = true;
@@ -71,7 +71,7 @@ export function createRenderer3(canvas) {
   resize();
   window.addEventListener('resize', resize);
 
-  // Ease the camera yaw towards the target heading along the short way round.
+  // Haluskan yaw kamera menuju arah target, lewat jalan terpendek.
   function easeYaw(target, dt, rate) {
     let dy = target - camState.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2;
@@ -79,8 +79,8 @@ export function createRenderer3(canvas) {
     camState.yaw += dy * Math.min(1, dt * rate);
   }
 
-  // Smooth follow camera. `target` is {x, z, heading, speed}; driving pulls
-  // the camera further back and a little higher.
+  // Kamera ikuti yang diperhalus. `target` adalah {x, z, heading, speed};
+  // menyetir menarik kamera lebih jauh ke belakang dan sedikit lebih tinggi.
   function follow(target, inCar, dt) {
     easeYaw(target.heading, dt, inCar ? 2.2 : 3.5);
     const dist = inCar ? 14 : 10;
@@ -98,7 +98,7 @@ export function createRenderer3(canvas) {
     camera.lookAt(camState.look);
   }
 
-  // Snap the camera instantly behind the target (used to stage screenshots).
+  // Jepret kamera langsung ke belakang target (dipakai menata screenshot).
   function snap(target, inCar) {
     camState.yaw = target.heading;
     const dist = inCar ? 14 : 10;
@@ -117,7 +117,7 @@ export function createRenderer3(canvas) {
     camera.lookAt(camState.look);
   }
 
-  // Cinematic camera for the title screen: a slow orbit over downtown.
+  // Kamera sinematik untuk layar judul: orbit pelan di atas pusat kota.
   function orbit(time) {
     const a = time * 0.05;
     camera.position.set(Math.sin(a) * 170, 90, Math.cos(a) * 170 - 20);

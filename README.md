@@ -4,13 +4,13 @@
 [![rank](https://make.fun/badge/gta6-01/cszetmedia/kota-raya/rank.svg)](https://make.fun/competitions/gta6-01)
 [![reward](https://make.fun/badge/gta6-01/cszetmedia/kota-raya/reward.svg)](https://make.fun/competitions/gta6-01)
 
-**Kota Raya** adalah game open-world crime original yang terinspirasi kota Jakarta: jelajahi kota dengan berjalan kaki dan mengemudi, curi mobil, hadapi polisi dengan sistem wanted level, selesaikan misi dan cerita, lalu simpan progresmu.
+**Kota Raya** adalah game open-world crime original yang mengambil inspirasi dari Jakarta. Kamu menjelajahi kota dengan berjalan kaki dan mengemudi, mencuri mobil, berurusan dengan polisi lewat sistem wanted level, menyelesaikan misi dan cerita, lalu menyimpan progresmu.
 
 Entri untuk bounty [Make GTA 6 (gta6-01)](https://make.fun/competitions/gta6-01) di make.fun. Kota, karakter, kendaraan, nama, cerita, gambar, suara, dan musik semuanya karya original — bukan aset Rockstar Games.
 
 ## Cara main
 
-Buka `game/index.html` di browser desktop (Chrome). Gamenya berjalan sepenuhnya offline dari file statis, tanpa koneksi internet.
+Buka `game/index.html` di browser desktop (Chrome). Game berjalan sepenuhnya offline dari file statis, tanpa koneksi internet.
 
 - **WASD** gerak / nyetir · **Shift** lari / nitro · **E** masuk-keluar mobil
 - **F** pukul · **Spasi** rem tangan · **Esc** jeda · **M** suara

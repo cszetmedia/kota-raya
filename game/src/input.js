@@ -1,15 +1,16 @@
-// Kota Raya — keyboard input.
+// Kota Raya — input keyboard.
 //
-// Held keys steer and drive; one-shot presses (get in a car, punch, pause,
-// mute, confirm) are latched as flags and collected once by the game loop,
-// so a press that lands between two frames is never lost or counted twice.
+// Tombol yang ditahan mengemudikan dan menyetir; tekanan sekali (masuk
+// mobil, pukul, jeda, bisu, konfirmasi) dikunci sebagai flag dan diambil
+// sekali oleh loop game, sehingga tekanan yang jatuh di antara dua frame
+// tidak pernah hilang atau terhitung dua kali.
 export const ACTION_ENTER = 1;
 export const ACTION_PUNCH = 2;
 export const ACTION_PAUSE = 4;
 export const ACTION_MUTE = 8;
 export const ACTION_CONFIRM = 16;
 
-// Which physical keys count as each direction. Both WASD and arrows work.
+// Tombol fisik untuk tiap arah. WASD dan tombol panah sama-sama bisa.
 const KEY_BINDINGS = {
   forward: ['KeyW', 'ArrowUp'],
   back: ['KeyS', 'ArrowDown'],
@@ -19,7 +20,7 @@ const KEY_BINDINGS = {
   brake: ['Space'],
 };
 
-// One-shot keys and the flag each one raises.
+// Tombol sekali-tekan dan flag yang dinaikkan masing-masing.
 const PRESS_ACTIONS = {
   KeyE: ACTION_ENTER,
   KeyF: ACTION_PUNCH,
@@ -29,7 +30,7 @@ const PRESS_ACTIONS = {
   Enter: ACTION_CONFIRM,
 };
 
-// Keys whose default browser behaviour (page scroll) must be stopped.
+// Tombol yang perilaku default browser-nya (scroll halaman) harus dicegah.
 const SCROLL_KEYS = new Set([...KEY_BINDINGS.forward, ...KEY_BINDINGS.back, ...KEY_BINDINGS.brake]);
 
 export function createInput() {
@@ -53,11 +54,11 @@ export function createInput() {
   const anyHeld = (codes) => codes.some((code) => held.has(code));
 
   return {
-    // -1 for back, +1 for forward, 0 when neither (or both) are held.
+    // -1 untuk mundur, +1 untuk maju, 0 bila tidak ada (atau keduanya) ditekan.
     throttle() {
       return (anyHeld(KEY_BINDINGS.forward) ? 1 : 0) - (anyHeld(KEY_BINDINGS.back) ? 1 : 0);
     },
-    // -1 for left, +1 for right, 0 when neither (or both) are held.
+    // -1 untuk kiri, +1 untuk kanan, 0 bila tidak ada (atau keduanya) ditekan.
     steer() {
       return (anyHeld(KEY_BINDINGS.right) ? 1 : 0) - (anyHeld(KEY_BINDINGS.left) ? 1 : 0);
     },
@@ -67,7 +68,7 @@ export function createInput() {
     brake() {
       return anyHeld(KEY_BINDINGS.brake);
     },
-    // The one-shot presses since the last call, as ACTION_* flags.
+    // Tekanan sekali yang terkumpul sejak pemanggilan terakhir, sebagai flag ACTION_*.
     takeActions() {
       const taken = queued;
       queued = 0;

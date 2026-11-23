@@ -1,13 +1,13 @@
-// Kota Raya — story missions. Raka, a young driver from Kampung Melati, takes
-// jobs from Bang Darma, a fixer with a garage in the beach district. Four
-// missions teach driving, pickup, stealing and escaping; finishing all four
-// completes the story and opens free roam.
+// Kota Raya — misi cerita. Raka, pengemudi muda dari Kampung Melati,
+// mengambil pekerjaan dari Bang Darma, seorang fixer yang punya bengkel di
+// kawasan pantai. Empat misi mengajarkan menyetir, menjemput, mencuri, dan
+// kabur; menyelesaikan keempatnya menamatkan cerita dan membuka free roam.
 import { MISSION_REWARDS } from './config.js';
 import { raiseWanted } from './police.js';
 
 export const STORY_COMPLETE_CASH_BONUS = 0;
 
-// The yellow beacon: a light column and a pulsing ring on the ground.
+// Penanda kuning: kolom cahaya dan cincin berdenyut di tanah.
 function buildBeacon(scene) {
   const beacon = new THREE.Group();
   const columnMat = new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.35 });
@@ -31,7 +31,8 @@ function within(player, target, radius) {
   return Math.hypot(player.x - target.x, player.z - target.z) < radius;
 }
 
-// The four missions, each a list of steps with a check that advances them.
+// Empat misi, masing-masing berupa daftar langkah dengan pemeriksa yang
+// memajukannya.
 export function createMissions(scene, world) {
   const beacon = buildBeacon(scene);
   const missions = [
@@ -141,7 +142,7 @@ export function createMissions(scene, world) {
 
   const manager = {
     missions,
-    index: 0, // next mission to start
+    index: 0, // misi berikutnya yang akan dimulai
     active: null,
     stepIndex: 0,
     timeLeft: 0,
@@ -175,7 +176,7 @@ export function createMissions(scene, world) {
       }
     },
 
-    // Pulse the beacon ring and play the dialog lines one at a time.
+    // Denyutkan cincin beacon dan putar baris dialog satu demi satu.
     animateBeaconAndDialog(dt, w) {
       if (beacon.visible) {
         const t = performance.now() / 1000;
@@ -225,7 +226,7 @@ export function createMissions(scene, world) {
       w.cash += m.reward;
       w.audio.jingle();
       w.toast(`Misi selesai: ${m.title}  +Rp ${m.reward}rb`);
-      // Advance the index BEFORE saving, so the save resumes at the next mission.
+      // Majukan indeks SEBELUM menyimpan, supaya save melanjutkan ke misi berikutnya.
       this.index = Math.min(this.index + 1, missions.length);
       this.active = null;
       this.currentTarget = null;

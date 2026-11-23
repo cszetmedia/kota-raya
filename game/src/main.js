@@ -1,16 +1,16 @@
-// Kota Raya — boot and the one loop. The game moves between four screens:
-// title, play, paused and busted. Input is read every frame, the world
-// advances in fixed 1/60 s steps, and the renderer paints what is there.
+// Kota Raya — boot dan satu loop. Game bergerak di antara empat layar:
+// judul, bermain, jeda, dan tertangkap. Input dibaca setiap frame, dunia
+// maju dalam langkah tetap 1/60 detik, dan renderer menggambar apa yang ada.
 //
-// ?seed=N fixes the city layout and traffic. ?shot=start|drive|chase|mission
-// (with &seed=N) stages that scene instead of running the loop, paints it and
-// sets window.__shotReady for a screenshot.
+// ?seed=N mengunci tata letak kota dan lalu lintas. ?shot=start|drive|chase|mission
+// (dengan &seed=N) menggelar adegan itu sebagai ganti menjalankan loop,
+// menggambarnya, dan menyetel window.__shotReady untuk screenshot.
 import { STEP_SECONDS, createWorld } from './world.js';
 import { createInput, ACTION_CONFIRM, ACTION_PAUSE } from './input.js';
 import { CONTROLS_TEXT } from './config.js';
 import { stageShot } from './shots.js';
 
-// The longest frame the loop catches up on; a longer stall is dropped.
+// Frame terpanjang yang dikejar loop; jeda yang lebih panjang dibuang.
 const MAX_FRAME = 0.25;
 
 const params = new URLSearchParams(window.location.search);
@@ -18,7 +18,7 @@ const shot = params.get('shot');
 const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
 const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
 
-// The DOM the boot code owns: canvas, screens, buttons, status line.
+// DOM yang dimiliki kode boot: canvas, layar, tombol, baris status.
 const canvas = document.getElementById('game');
 const status = document.getElementById('status');
 const hudEl = document.getElementById('hud');
@@ -34,10 +34,10 @@ const saveLine = document.getElementById('save-line');
 
 const game = createWorld(canvas, seed);
 const { world } = game;
-// Debug handle: lets a play-test read positions and state from the console.
+// Pegangan debug: play-test bisa membaca posisi dan status dari konsol.
 window.__kotaRaya = game;
 
-// Show exactly one screen; the HUD only lives on the play screen.
+// Tampilkan tepat satu layar; HUD hanya hidup di layar bermain.
 function showOnly(screen) {
   titleScreen.style.display = screen === 'title' ? 'flex' : 'none';
   pauseScreen.style.display = screen === 'paused' ? 'flex' : 'none';
@@ -49,12 +49,12 @@ function announce(message) {
   status.textContent = message;
 }
 
-// Stage one screenshot scene, paint it, and signal readiness.
+// Gelar satu adegan screenshot, gambar, lalu beri sinyal siap.
 function runShot(name) {
   const screen = stageShot(name, game);
   showOnly(screen);
   announce(`Kota Raya, screenshot scene ${name}.`);
-  // Paint once more so the HUD and the frame settle, then signal readiness.
+  // Gambar sekali lagi supaya HUD dan frame menetap, lalu beri sinyal siap.
   requestAnimationFrame(() => {
     game.renderFrame(STEP_SECONDS);
     window.__shotReady = true;
@@ -68,7 +68,7 @@ function runGame() {
   let last = performance.now();
   let orbitTime = 0;
 
-  // Title screen copy, including the save line when progress exists.
+  // Teks layar judul, termasuk baris save saat ada progres.
   controlsEl.textContent = CONTROLS_TEXT;
   const savedCash = world.cash;
   const hasProgress = savedCash > 0 || world.missions.index > 0 || world.storyDone;
@@ -106,7 +106,7 @@ function runGame() {
     announce('Ketangkap! Tekan Enter untuk lanjut.');
   }
 
-  // What Enter does depends on the screen it is pressed on.
+  // Arti Enter bergantung pada layar tempat ia ditekan.
   function confirmPressed() {
     if (screen === 'title') {
       startGame();

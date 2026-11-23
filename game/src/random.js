@@ -1,7 +1,7 @@
-// Kota Raya — a tiny seeded generator (mulberry32) plus the small helpers
-// the world builders use to draw from it. Same seed, same city: the layout,
-// traffic colours and parked cars are all reproducible, which is what makes
-// the screenshot scenes deterministic.
+// Kota Raya — generator acak ber-seed (mulberry32) dan helper kecil untuk
+// mengambil dari generator itu. Seed yang sama selalu menghasilkan kota
+// yang sama: tata letak, warna lalu lintas, dan mobil parkir semuanya bisa
+// diulang, dan itulah yang membuat adegan screenshot deterministik.
 export function createRandom(seed) {
   let state = seed >>> 0;
 
@@ -14,18 +14,18 @@ export function createRandom(seed) {
   };
 }
 
-// One element of a list, uniformly at random.
+// Satu elemen dari sebuah daftar, dipilih seragam secara acak.
 export function pick(rng, list) {
   const index = Math.floor(rng() * list.length);
   return list[index];
 }
 
-// A float in [min, max).
+// Bilangan desimal pada [min, max).
 export function range(rng, min, max) {
   return min + rng() * (max - min);
 }
 
-// An integer in [min, max], both ends included.
+// Bilangan bulat pada [min, max], kedua ujung termasuk.
 export function rangeInt(rng, min, max) {
   return min + Math.floor(rng() * (max - min + 1));
 }

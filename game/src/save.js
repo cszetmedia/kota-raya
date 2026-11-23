@@ -1,6 +1,7 @@
-// Kota Raya — saving progress. Cash, the next mission and whether the story
-// is done live in localStorage, so coming back later resumes where the last
-// visit ended. Anything malformed or unavailable is treated as "no save".
+// Kota Raya — menyimpan progres. Uang, misi berikutnya, dan apakah cerita
+// sudah selesai tinggal di localStorage, jadi kembali lagi nanti berarti
+// lanjut dari tempat kunjungan terakhir berhenti. Apa pun yang rusak atau
+// tidak tersedia dianggap "tidak ada save".
 import { SAVE_KEY } from './config.js';
 
 function asNumber(value, fallback) {
@@ -43,6 +44,6 @@ export function clearSave() {
   try {
     window.localStorage.removeItem(SAVE_KEY);
   } catch {
-    // Storage may be unavailable (private mode, blocked cookies); ignore.
+    // Penyimpanan bisa tidak tersedia (mode privat, cookie diblokir); abaikan.
   }
 }

@@ -1,7 +1,7 @@
-// Kota Raya — procedural sound through WebAudio. There are no audio files:
-// the engine hum, the two-tone siren, the punch thud, pickup blips and
-// jingles are all synthesised, so the game ships zero audio assets and makes
-// zero network requests.
+// Kota Raya — suara prosedural lewat WebAudio. Tidak ada file audio:
+// dengung mesin, sirene dua nada, bunyi pukulan, blip ambilan, dan jingle
+// semuanya disintesis, jadi game ini tidak membawa aset audio sama sekali
+// dan tidak membuat permintaan jaringan.
 export function createAudio() {
   let ctx = null;
   let master = null;
@@ -13,7 +13,7 @@ export function createAudio() {
   let muted = false;
   let ambienceOn = false;
 
-  // Lazily build the audio graph on the first user gesture.
+  // Bangun graf audio secara malas saat gestur pertama dari pengguna.
   function ensureContext() {
     if (ctx) return true;
     try {
@@ -29,7 +29,7 @@ export function createAudio() {
     }
   }
 
-  // A quiet looped low-passed noise bed: city ambience.
+  // Lapisan noise pelan yang di-loop lewat low-pass: ambience kota.
   function startAmbience() {
     if (ambienceOn || !ctx) return;
     ambienceOn = true;
@@ -51,7 +51,7 @@ export function createAudio() {
     source.start();
   }
 
-  // One short oscillator note, optionally sliding to another pitch.
+  // Satu nada osilator pendek, boleh meluncur ke pitch lain.
   function blip(freq, dur, type, vol, delay = 0, slideTo = 0) {
     if (!ctx) return;
     const startAt = ctx.currentTime + delay;
@@ -69,7 +69,7 @@ export function createAudio() {
     osc.stop(startAt + dur + 0.05);
   }
 
-  // A short burst of filtered noise (impacts, thuds).
+  // Semburan singkat noise yang difilter (benturan, bunyi berat).
   function burst(dur, vol, cutoff) {
     if (!ctx) return;
     const frames = Math.floor(ctx.sampleRate * dur);
@@ -138,7 +138,7 @@ export function createAudio() {
         try {
           sirenOsc.stop();
         } catch {
-          // Already stopped.
+          // Sudah berhenti.
         }
         sirenOsc = null;
       }

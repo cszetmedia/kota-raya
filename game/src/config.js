@@ -1,25 +1,25 @@
-// Kota Raya — all the numbers the game is tuned with, in one place.
+// Kota Raya — semua angka penyetel game, dikumpulkan di satu tempat.
 //
-// The island city is a square grid of roads with a dense downtown, a kampung
-// quarter, a neon beach strip and the sea along the south edge. The numbers
-// below keep the world readable at a glance and the frame rate smooth, even
-// in a headless browser.
+// Kota pulau ini adalah grid jalan berbentuk kotak dengan pusat kota yang
+// padat, sebuah kawasan kampung, jalur pantai bernuansa neon, dan laut di
+// sepanjang tepi selatan. Angka-angka di bawah menjaga dunia tetap mudah
+// dibaca sekilas dan frame rate tetap mulus, bahkan di browser headless.
 
-// How the save file is named in localStorage.
+// Nama file save di localStorage.
 export const SAVE_KEY = 'kotaraya-save-v1';
 
-// How many cars and walkers the city starts with.
+// Jumlah mobil dan pejalan kaki saat kota pertama kali dibuat.
 export const TRAFFIC_COUNT = 14;
 export const PED_COUNT = 26;
 
-// Cash is tracked in thousands of rupiah: 150 means "Rp 150rb".
+// Uang dihitung dalam ribuan rupiah: 150 berarti "Rp 150rb".
 export const MISSION_REWARDS = [150, 200, 350, 500];
 
-// The one-line control summary shown under the title screen.
+// Ringkasan kontrol satu baris yang tampil di bawah layar judul.
 export const CONTROLS_TEXT =
   'WASD gerak / nyetir · Shift lari / nitro · E masuk-keluar mobil · F pukul · Spasi rem tangan · Esc jeda · M suara';
 
-// The map itself: seven parallel roads on each axis, 70 m apart.
+// Petanya sendiri: tujuh jalan sejajar di tiap sumbu, berjarak 70 m.
 export const WORLD = {
   roadSpacing: 70,
   roads: [-210, -140, -70, 0, 70, 140, 210],
@@ -30,7 +30,7 @@ export const WORLD = {
   downtownHalf: 105,
 };
 
-// Light, sky and fog for the tropical afternoon look.
+// Cahaya, langit, dan kabut untuk nuansa siang tropis.
 export const TROPIC = {
   skyTop: 0x2f7fd0,
   skyBottom: 0xbfe6f2,
@@ -43,7 +43,7 @@ export const TROPIC = {
   fogFar: 620,
 };
 
-// Raka on foot.
+// Raka saat berjalan kaki.
 export const PLAYER_TUNING = {
   walkSpeed: 6.5,
   sprintSpeed: 10.5,
@@ -52,7 +52,7 @@ export const PLAYER_TUNING = {
   maxHealth: 100,
 };
 
-// Arcade car handling. maxSpeed 34 m/s is about 122 km/h.
+// Kendali mobil gaya arcade. maxSpeed 34 m/detik setara sekitar 122 km/jam.
 export const CAR_TUNING = {
   accel: 16,
   reverseAccel: 10,
@@ -64,7 +64,7 @@ export const CAR_TUNING = {
   radius: 1.6,
 };
 
-// The wanted system: how many stars, how fast the chase, when the heat fades.
+// Sistem wanted: jumlah bintang, kecepatan kejar-kejaran, kapan panas mereda.
 export const POLICE_TUNING = {
   maxStars: 5,
   chaseSpeed: 30,

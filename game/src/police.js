@@ -1,9 +1,10 @@
-// Kota Raya — the wanted system. Crimes raise stars; police cars spawn at
-// the edge of town, chase the player, ram the player's car, and bust the
-// player on foot if they stay close. Lay low and the heat fades.
+// Kota Raya — sistem wanted. Kejahatan menaikkan bintang; mobil polisi
+// muncul dari tepi kota, mengejar pemain, menabrak mobil pemain, dan
+// menangkap pemain yang berjalan kaki bila mereka cukup lama berdekatan.
+// Bersembunyi dan panasnya perlahan mereda.
 //
-// Spawn draw order (edge coin, axis coin, then one offset draw) is part of
-// the seeded city: keep it in this order.
+// Urutan undian saat memunculkan polisi (koin tepi, koin sumbu, lalu satu
+// undian offset) adalah bagian dari kota ber-seed: jaga urutan ini.
 import { POLICE_TUNING, WORLD } from './config.js';
 import { makeCar } from './vehicles.js';
 import { resolveCollisions, clampToCity } from './city.js';
@@ -11,7 +12,7 @@ import { resolveCollisions, clampToCity } from './city.js';
 export function createWanted(scene) {
   return {
     stars: 0,
-    heat: 0, // seconds since the last crime
+    heat: 0, // detik sejak kejahatan terakhir
     decayTimer: 0,
     police: [], // {mesh, x, z, heading, speed}
     bustTimer: 0,
@@ -27,8 +28,7 @@ export function raiseWanted(wanted, amount, reason) {
   return reason;
 }
 
-// Bring one police car in on a road at the edge of town, roughly towards
-// the player.
+// Datangkan satu mobil polisi di jalan tepi kota, kira-kira ke arah pemain.
 function spawnPoliceCar(wanted, rng, nearX, nearZ) {
   const mesh = makeCar(0xf2f2f2, true);
   const edge = rng() < 0.5 ? -1 : 1;
@@ -55,7 +55,7 @@ function removePoliceCar(wanted, car) {
   if (i >= 0) wanted.police.splice(i, 1);
 }
 
-// Shortest signed turn from one heading towards another.
+// Belokan bertanda terpendek dari satu arah hadap ke arah hadap lain.
 function turnTowards(heading, target, maxStep) {
   let diff = target - heading;
   while (diff > Math.PI) diff -= Math.PI * 2;
@@ -63,8 +63,9 @@ function turnTowards(heading, target, maxStep) {
   return heading + Math.max(-maxStep, Math.min(maxStep, diff));
 }
 
-// Chase update. Returns 'busted' when the police catch the player on foot,
-// otherwise null. `onRam` runs when a police car hits the player's car.
+// Update pengejaran. Mengembalikan 'busted' saat polisi menangkap pemain
+// yang berjalan kaki, atau null. `onRam` berjalan saat mobil polisi
+// menabrak mobil pemain.
 export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
   const desired = wanted.stars === 0 ? 0 : Math.min(POLICE_TUNING.maxCars, wanted.stars + 1);
   while (wanted.police.length < desired) {
@@ -74,7 +75,7 @@ export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
     removePoliceCar(wanted, wanted.police[wanted.police.length - 1]);
   }
 
-  // Flash the light bars.
+  // Kedipkan palang lampu.
   wanted.flash += dt;
   const flashOn = Math.floor(wanted.flash * 4) % 2 === 0;
   for (const car of wanted.police) {
@@ -84,7 +85,7 @@ export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
     if (blue) blue.material.emissive.setHex(flashOn ? 0x000022 : 0x0022ff);
   }
 
-  // Wanted decay: no crime for a while and no police close by.
+  // Wanted mereda: lama tanpa kejahatan dan tidak ada polisi di dekat.
   wanted.heat += dt;
   if (wanted.stars > 0 && wanted.heat > POLICE_TUNING.decayDelay) {
     let nearest = Infinity;
@@ -102,7 +103,7 @@ export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
     }
   }
 
-  // Chase: steer towards the player, push out of buildings, ram on contact.
+  // Kejar-kejaran: setir ke arah pemain, dorong keluar dari gedung, tabrak saat bersentuhan.
   let busted = false;
   for (const car of wanted.police) {
     const dx = player.x - car.x;
@@ -122,7 +123,7 @@ export function updateWanted(wanted, dt, player, colliders, rng, onRam) {
 
     if (player.inCar) {
       if (dist < 3.4) {
-        // Ram: shove the player's car and slow it down.
+        // Tabrakan: dorong mobil pemain dan perlambat lajunya.
         if (player.car) {
           player.car.speed *= 0.55;
           player.car.x += (dx / dist) * 0.6;

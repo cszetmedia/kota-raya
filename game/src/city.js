@@ -1,23 +1,24 @@
-// Kota Raya — the procedural city.
+// Kota Raya — kota prosedural.
 //
-// One painted ground texture carries the roads, sidewalks, beach and sea;
-// buildings are a single InstancedMesh with a window texture; the Tugu Raya
-// monument, palms, lamps and neon signs are props. Every building registers
-// an AABB collider so cars and the player cannot drive through walls.
+// Satu tekstur tanah yang digambar membawa jalan, trotoar, pantai, dan
+// laut; gedung-gedung adalah satu InstancedMesh dengan tekstur jendela;
+// monumen Tugu Raya, palem, lampu jalan, dan papan neon adalah properti.
+// Setiap gedung mendaftarkan collider AABB supaya mobil dan pemain tidak
+// bisa menembus dinding.
 //
-// The layout is drawn from the seeded generator, and the order the generator
-// is consumed in is part of the city: keep the draw order of this module the
-// same and a seed always builds the same streets.
+// Tata letak diambil dari generator ber-seed, dan urutan generator
+// dipakai di modul ini adalah bagian dari kota: jaga urutan gambar di
+// sini tetap sama dan satu seed selalu membangun jalan yang sama.
 import { WORLD } from './config.js';
 import { pick, range, rangeInt } from './random.js';
 
 const BUILDING_COLORS = [0xe8dcc8, 0xd9c7a7, 0xc9b18c, 0x9fb8c8, 0xb8c4a8, 0xd8a08a, 0xa8b8d8, 0xe8c8a0];
 const NEON_COLORS = [0xff2d78, 0x00e5ff, 0xffd400, 0x7cff00, 0xff6a00];
-const MAP_SIZE = 560; // the ground plane covers -280..280 on both axes
+const MAP_SIZE = 560; // bidang tanah menutupi -280..280 di kedua sumbu
 
-// Paint the whole map onto one canvas: concrete, sea and sand, the park and
-// the monument plaza, sidewalk blocks, then asphalt, lane dashes and
-// crosswalks, in that order.
+// Gambar seluruh peta ke satu kanvas: beton, laut dan pasir, taman dan
+// plaza monumen, blok trotoar, lalu aspal, garis tengah, dan zebra cross,
+// dalam urutan itu.
 function paintGround() {
   const px = 1024;
   const canvas = document.createElement('canvas');
@@ -30,7 +31,7 @@ function paintGround() {
   g.fillStyle = '#a08a68';
   g.fillRect(0, 0, px, px);
 
-  // Sea along the south edge, sand in front of it, foam where they meet.
+  // Laut di tepi selatan, pasir di depannya, buih di pertemuan keduanya.
   g.fillStyle = '#2fa8c8';
   rect(-280, WORLD.seaZ, 280, 280);
   g.fillStyle = '#e8d8a0';
@@ -38,13 +39,13 @@ function paintGround() {
   g.fillStyle = 'rgba(255,255,255,0.65)';
   g.fillRect(0, toPx(WORLD.seaZ) - 3, px, 6);
 
-  // The north-west park and the central monument plaza.
+  // Taman barat laut dan plaza monumen di tengah.
   g.fillStyle = '#7cb86a';
   rect(-245, -245, -175, -175);
   g.fillStyle = '#c8b898';
   rect(-30, -30, 30, 30);
 
-  // Sidewalk blocks between the roads.
+  // Blok trotoar di antara jalan-jalan.
   g.fillStyle = '#a89e86';
   for (let i = 0; i < WORLD.roads.length - 1; i += 1) {
     for (let j = 0; j < WORLD.roads.length - 1; j += 1) {
@@ -57,7 +58,7 @@ function paintGround() {
     }
   }
 
-  // Asphalt: one strip per road on each axis.
+  // Aspal: satu lajur per jalan di tiap sumbu.
   g.fillStyle = '#3a3f46';
   const half = WORLD.roadWidth / 2;
   for (const r of WORLD.roads) {
@@ -65,7 +66,7 @@ function paintGround() {
     rect(-280, r - half, 280, r + half);
   }
 
-  // Yellow centre dashes.
+  // Garis tengah kuning putus-putus.
   g.fillStyle = '#f2d24b';
   for (const r of WORLD.roads) {
     for (let v = -270; v < WORLD.beachZ; v += 12) {
@@ -74,7 +75,7 @@ function paintGround() {
     }
   }
 
-  // Crosswalk stripes at every intersection.
+  // Garis zebra di setiap persimpangan.
   g.fillStyle = 'rgba(255,255,255,0.85)';
   for (const rx of WORLD.roads) {
     for (const rz of WORLD.roads) {
@@ -91,7 +92,7 @@ function paintGround() {
   return tex;
 }
 
-// A repeating facade: warm concrete with a grid of lit and dark windows.
+// Fasad berulang: beton hangat dengan grid jendela yang menyala dan gelap.
 function paintFacade() {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
@@ -111,7 +112,7 @@ function paintFacade() {
   return tex;
 }
 
-// One palm: a leaning trunk and six cone leaves.
+// Satu palem: batang yang miring dan enam daun kerucut.
 function buildPalm(rng) {
   const group = new THREE.Group();
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8a6a48 });
@@ -130,14 +131,14 @@ function buildPalm(rng) {
   return group;
 }
 
-/** Build the whole city into the scene. Returns colliders and park spots. */
+/** Bangun seluruh kota ke dalam scene. Mengembalikan collider dan spot parkir. */
 export function createCity(scene, rng) {
   const colliders = [];
   const parkSpots = [];
   const group = new THREE.Group();
   group.name = 'city';
 
-  // Ground: one textured plane for the whole map.
+  // Tanah: satu bidang bertekstur untuk seluruh peta.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(560, 560),
     new THREE.MeshLambertMaterial({ map: paintGround() }),
@@ -147,7 +148,7 @@ export function createCity(scene, rng) {
   ground.receiveShadow = true;
   group.add(ground);
 
-  // The sea plane, just below the sand so the shoreline reads.
+  // Bidang laut, sedikit di bawah pasir supaya garis pantai terbaca.
   const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(560, 268),
     new THREE.MeshLambertMaterial({ color: 0x2fa8c8 }),
@@ -156,8 +157,8 @@ export function createCity(scene, rng) {
   sea.position.set(0, -0.15, WORLD.seaZ + 134);
   group.add(sea);
 
-  // Where the buildings go: one or two per block, two or three downtown,
-  // skipping the beach row, the monument plaza and the park.
+  // Tempat gedung berdiri: satu atau dua per blok, dua atau tiga di pusat
+  // kota, melewati baris pantai, plaza monumen, dan taman.
   const placements = [];
   for (let i = 0; i < WORLD.roads.length - 1; i += 1) {
     for (let j = 0; j < WORLD.roads.length - 1; j += 1) {
@@ -206,7 +207,7 @@ export function createCity(scene, rng) {
   instanced.receiveShadow = true;
   group.add(instanced);
 
-  // Tugu Raya: the golden obelisk on the central plaza.
+  // Tugu Raya: obelisk emas di plaza tengah.
   const monument = new THREE.Group();
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(9, 11, 3, 8),
@@ -230,7 +231,7 @@ export function createCity(scene, rng) {
   monument.add(flame);
   group.add(monument);
 
-  // Park trees in the north-west block.
+  // Pohon-pohon taman di blok barat laut.
   const leafMat = new THREE.MeshLambertMaterial({ color: 0x4d9e57 });
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a5a38 });
   for (let i = 0; i < 14; i += 1) {
@@ -244,7 +245,7 @@ export function createCity(scene, rng) {
     group.add(crown);
   }
 
-  // Palms along the beach, then along the main avenue.
+  // Palem di sepanjang pantai, lalu di sepanjang jalan utama.
   for (let i = 0; i < 26; i += 1) {
     const palm = buildPalm(rng);
     if (i < 16) palm.position.set(range(rng, -240, 240), 0, range(rng, 256, 282));
@@ -252,7 +253,7 @@ export function createCity(scene, rng) {
     group.add(palm);
   }
 
-  // Neon signs over the beach strip.
+  // Papan neon di atas jalur pantai.
   for (let i = 0; i < 8; i += 1) {
     const sign = new THREE.Mesh(
       new THREE.BoxGeometry(range(rng, 6, 12), 2.2, 0.5),
@@ -265,7 +266,7 @@ export function createCity(scene, rng) {
     group.add(sign);
   }
 
-  // A street lamp at every intersection.
+  // Lampu jalan di setiap persimpangan.
   const lampMat = new THREE.MeshLambertMaterial({ color: 0x30343a });
   const bulbMat = new THREE.MeshLambertMaterial({ color: 0xffe9a8, emissive: 0xccaa44 });
   for (const rx of WORLD.roads) {
@@ -279,7 +280,7 @@ export function createCity(scene, rng) {
     }
   }
 
-  // Kerb spots for parked cars (stealable, not traffic).
+  // Spot tepi jalan untuk mobil parkir (bisa dicuri, bukan lalu lintas).
   for (let i = 0; i < 10; i += 1) {
     const road = pick(rng, WORLD.roads);
     const along = range(rng, -200, 200);
@@ -292,7 +293,8 @@ export function createCity(scene, rng) {
   return { colliders, parkSpots, group };
 }
 
-// Push a circle (x, z, radius) out of every building AABB it overlaps.
+// Dorong sebuah lingkaran (x, z, radius) keluar dari setiap AABB gedung
+// yang bersinggungan dengannya.
 export function resolveCollisions(colliders, x, z, radius) {
   let nx = x;
   let nz = z;
@@ -307,7 +309,7 @@ export function resolveCollisions(colliders, x, z, radius) {
       nx = cx + (dx / d) * radius;
       nz = cz + (dz / d) * radius;
     } else if (d2 <= 0.0001) {
-      // The centre is inside the box: leave through the nearest face.
+      // Titik pusatnya ada di dalam kotak: keluar lewat sisi terdekat.
       const toLeft = nx - c.minX;
       const toRight = c.maxX - nx;
       const toTop = nz - c.minZ;
@@ -322,7 +324,8 @@ export function resolveCollisions(colliders, x, z, radius) {
   return { x: nx, z: nz };
 }
 
-// Keep a point inside the playable map (the beach extends a little further).
+// Jaga satu titik tetap di dalam peta yang bisa dimainkan (pantai
+// membentang sedikit lebih jauh).
 export function clampToCity(x, z) {
   const half = WORLD.cityHalf;
   return {
