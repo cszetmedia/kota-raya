@@ -1,74 +1,42 @@
-// Server statis mungil untuk game/ (Node 22, pustaka standar saja), supaya
-// sebuah entri bisa dimainkan secara lokal tanpa langkah build: `node serve.ts`
-// melayani game/ di http://localhost:8080. Server ini mengirim tipe MIME
-// yang dibutuhkan game browser, menolak path apa pun di luar game/, dan
-// selebihnya tidak melakukan hal pintar: ini alat bantu pengembangan,
-// bukan server web untuk internet.
-import { createReadStream, statSync } from 'node:fs';
+// Kota Raya — server statis kecil untuk pengembangan dan play-test.
+// Menyajikan game/ di http://127.0.0.1:PORT (default 8901).
 import { createServer } from 'node:http';
-import { extname, join, normalize, resolve, sep } from 'node:path';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { join, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('./game', import.meta.url)));
-const args = process.argv.slice(2);
-const portIndex = args.indexOf('--port');
-const requested = portIndex === -1 ? 8080 : Number(args[portIndex + 1]);
-const port = Number.isInteger(requested) && requested > 0 && requested < 65536 ? requested : 8080;
+const repoDir = resolve(fileURLToPath(new URL('.', import.meta.url)));
+const gameDir = join(repoDir, 'game');
 
-const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
+let port = 8901;
+const portFlag = process.argv.indexOf('--port');
+if (portFlag >= 0 && process.argv[portFlag + 1]) {
+  const parsed = Number(process.argv[portFlag + 1]);
+  if (Number.isFinite(parsed)) port = parsed;
+}
+
+const TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
   '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
-  '.glb': 'model/gltf-binary',
-  '.gltf': 'model/gltf+json',
-  '.bin': 'application/octet-stream',
-  '.wasm': 'application/wasm',
-  '.wav': 'audio/wav',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
-  '.txt': 'text/plain; charset=utf-8',
+  '.png': 'image/png',
 };
 
-createServer((request, response) => {
-  const url = new URL(request.url ?? '/', 'http://localhost');
-  let pathname: string;
-  try {
-    pathname = decodeURIComponent(url.pathname);
-  } catch {
-    response.writeHead(400).end('bad request');
+const server = createServer((req, res) => {
+  const rawPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  const filePath = join(gameDir, rawPath === '/' ? 'index.html' : rawPath);
+  if (!filePath.startsWith(gameDir) || !existsSync(filePath) || !statSync(filePath).isFile()) {
+    res.writeHead(404, { 'content-type': 'text/plain' });
+    res.end('not found');
     return;
   }
-  if (pathname.endsWith('/')) pathname += 'index.html';
-  const file = resolve(join(root, normalize(pathname)));
-  if (file !== root && !file.startsWith(root + sep)) {
-    response.writeHead(403).end('forbidden');
-    return;
-  }
-  let size: number;
-  try {
-    const stats = statSync(file);
-    if (!stats.isFile()) throw new Error('not a file');
-    size = stats.size;
-  } catch {
-    response.writeHead(404).end('not found');
-    return;
-  }
-  response.writeHead(200, {
-    'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
-    'content-length': size,
-    'cache-control': 'no-store',
-  });
-  createReadStream(file).pipe(response);
-}).listen(port, '127.0.0.1', () => {
-  console.log(`game/ is on http://localhost:${port}`);
+  res.writeHead(200, { 'content-type': TYPES[extname(filePath)] || 'application/octet-stream' });
+  res.end(readFileSync(filePath));
+});
+
+server.listen(port, '127.0.0.1', () => {
+  console.log(`Kota Raya disajikan di http://127.0.0.1:${port}/`);
 });

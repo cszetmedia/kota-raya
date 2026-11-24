@@ -1,216 +1,63 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kota Raya — Open World Crime</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23f2c200'/%3E%3C/svg%3E">
 <style>
-  /* Halaman penuh kanvas; warna laut gelap di belakangnya. */
-  html, body {
-    margin: 0;
-    height: 100%;
-    overflow: hidden;
-    background: #0e2a3a;
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  #game {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    touch-action: none;
-  }
-  /* Baris status untuk pembaca layar, disembunyikan dari tampilan. */
-  #status {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  /* HUD melayang di atas kanvas dan tidak menangkap klik. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1b2a; font-family: system-ui, -apple-system, sans-serif; }
+  #game-canvas { position: fixed; inset: 0; }
+  #game-canvas canvas { display: block; }
   #hud {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    color: #fff;
-    display: none;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    position: fixed; inset: 0; pointer-events: none; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.8); z-index: 5;
   }
+  .panel { position: absolute; background: rgba(10, 20, 35, .55); border-radius: 10px; padding: 8px 12px; }
+  #hud-left { top: 12px; left: 12px; font-size: 17px; font-weight: 700; line-height: 1.5; }
+  #stars { top: 12px; right: 12px; font-size: 22px; letter-spacing: 2px; color: #ffd24a; }
+  #speed { bottom: 14px; left: 12px; font-size: 26px; font-weight: 800; }
   #objective {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    max-width: 46%;
-    background: rgba(10, 20, 30, 0.62);
-    border-left: 4px solid #ffd400;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 15px;
-    line-height: 1.35;
+    bottom: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 15px; font-weight: 600; max-width: 60%; text-align: center;
   }
-  #stats {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    text-align: right;
-    background: rgba(10, 20, 30, 0.62);
-    padding: 10px 14px;
-    border-radius: 6px;
+  #minimap-wrap { top: 56px; right: 12px; padding: 4px; }
+  #minimap { display: block; border-radius: 6px; }
+  #title-screen {
+    position: fixed; inset: 0; z-index: 10; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, rgba(8, 18, 32, .82), rgba(8, 18, 32, .62));
+    color: #fff; text-align: center; padding: 24px;
   }
-  #cash { font-size: 20px; font-weight: 800; color: #7cff9a; }
-  #stars { font-size: 20px; letter-spacing: 2px; }
-  #health { font-size: 15px; }
-  #minimap {
-    position: absolute;
-    left: 14px;
-    bottom: 14px;
-    width: 180px;
-    height: 180px;
-    border: 2px solid rgba(255, 255, 255, 0.75);
-    border-radius: 8px;
-    background: rgba(10, 20, 30, 0.55);
-  }
-  #speed {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    font-size: 26px;
-    font-weight: 800;
-  }
-  #dialog {
-    position: absolute;
-    left: 50%;
-    bottom: 110px;
-    transform: translateX(-50%);
-    max-width: 70%;
-    text-align: center;
-    font-size: 17px;
-    font-style: italic;
-    background: rgba(0, 0, 0, 0.55);
-    padding: 8px 16px;
-    border-radius: 8px;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  #toast {
-    position: absolute;
-    left: 50%;
-    top: 84px;
-    transform: translateX(-50%);
-    font-size: 17px;
-    font-weight: 700;
-    color: #ffd400;
-    background: rgba(0, 0, 0, 0.55);
-    padding: 8px 16px;
-    border-radius: 8px;
-    opacity: 0;
-    transition: opacity 0.3s;
-    white-space: nowrap;
-  }
-  #banner {
-    position: absolute;
-    left: 50%;
-    top: 34%;
-    transform: translateX(-50%);
-    font-size: 42px;
-    font-weight: 900;
-    letter-spacing: 2px;
-    color: #ffd400;
-    opacity: 0;
-    transition: opacity 0.3s;
-    white-space: nowrap;
-  }
-  /* Layar judul, jeda, dan ketangkap memakai satu gaya panel. */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(180deg, rgba(8, 30, 44, 0.30), rgba(8, 30, 44, 0.62));
-    color: #fff;
-    z-index: 5;
-  }
-  .panel { text-align: center; max-width: 640px; padding: 32px; }
-  .panel h1 {
-    font-size: 64px;
-    margin: 0 0 4px;
-    letter-spacing: 4px;
-    color: #ffd400;
-    text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
-  }
-  .panel h2 { font-size: 18px; font-weight: 600; margin: 0 0 18px; color: #bfe6f2; }
-  .panel p { font-size: 16px; line-height: 1.55; color: #e8f4f8; }
-  .panel button {
-    pointer-events: auto;
-    margin-top: 18px;
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    color: #10202c;
-    background: #ffd400;
-    border: none;
-    padding: 14px 42px;
-    border-radius: 10px;
-    cursor: pointer;
-  }
-  .panel button:hover { background: #ffe14d; }
-  .panel .small { font-size: 13px; color: #9fc4d4; margin-top: 16px; line-height: 1.5; }
-  #busted-screen h1 { color: #ff5a5a; }
+  #title-screen h1 { font-size: 64px; letter-spacing: 10px; color: #ffd24a; text-shadow: 0 4px 18px rgba(0,0,0,.7); }
+  #title-screen h2 { font-size: 18px; font-weight: 600; margin-top: 6px; color: #dfe9f2; }
+  #title-screen p { margin-top: 14px; font-size: 15px; color: #b8c7d6; max-width: 560px; line-height: 1.6; }
+  #save-line { margin-top: 18px; font-size: 15px; font-weight: 700; color: #7ddf8a; min-height: 20px; }
+  #title-screen .hint { margin-top: 10px; font-size: 16px; font-weight: 700; color: #ffd24a; }
+  #title-screen .keys { margin-top: 22px; font-size: 13px; color: #8fa3b5; line-height: 1.8; }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Kota Raya: game open-world crime. Jelajahi kota dengan berjalan kaki atau mengemudi, selesaikan misi, hindari polisi."></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-
-<div id="hud">
-  <div id="objective">Tekan Enter untuk mulai misi berikutnya</div>
-  <div id="stats">
-    <div id="cash">Rp 0rb</div>
-    <div id="stars">☆☆☆☆☆</div>
-    <div id="health">❤ 100</div>
+<div id="game-canvas"></div>
+<div id="hud" style="display:none">
+  <div class="panel" id="hud-left">
+    <div id="cash">Rp 0</div>
+    <div id="health">Nyawa 100</div>
   </div>
-  <canvas id="minimap" width="180" height="180"></canvas>
-  <div id="speed"></div>
-  <div id="dialog"></div>
-  <div id="toast"></div>
-  <div id="banner"></div>
+  <div class="panel" id="stars">☆☆☆☆☆</div>
+  <div class="panel" id="minimap-wrap"><canvas id="minimap" width="180" height="180"></canvas></div>
+  <div class="panel" id="speed">0 km/j</div>
+  <div class="panel" id="objective">Tekan Enter untuk misi berikutnya</div>
 </div>
-
-<div id="title-screen" class="overlay" style="display:flex">
-  <div class="panel">
-    <h1>KOTA RAYA</h1>
-    <h2>Open-world crime di kota tropis yang tak pernah tidur</h2>
-    <p>Raka, sopir muda dari Kampung Melati, butuh uang cepat. Bang Darma punya
-    kerjaan: antar paket, jemput orang, curi mobil, dan kabur dari polisi.
-    Jelajahi kota dengan berjalan kaki atau mengemudi, curi mobil apa saja,
-    dan jangan sampai ketangkap.</p>
-    <p id="save-line" class="small"></p>
-    <button id="start-button">MULAI</button>
-    <p id="controls-line" class="small"></p>
-    <p class="small">Game original — kota, tokoh, dan cerita dibuat sendiri. Bukan GTA.</p>
-  </div>
+<div id="title-screen">
+  <h1>KOTA RAYA</h1>
+  <h2>Bukan GTA — game open-world orisinal dari Jakarta</h2>
+  <p>Raka, anak Kampung Melati, mengantar paket, menjemput Sari, dan mencuri sedan pesanan Bang Darma — sambil dikejar polisi di jalanan Kota Raya.</p>
+  <div id="save-line"></div>
+  <div class="hint">Tekan Enter untuk mulai</div>
+  <div class="keys">WASD jalan / mengemudi &nbsp;·&nbsp; E masuk &amp; keluar mobil &nbsp;·&nbsp; Enter mulai &amp; lanjut misi</div>
 </div>
-
-<div id="pause-screen" class="overlay">
-  <div class="panel">
-    <h1>JEDA</h1>
-    <p>Kota Raya menunggumu.</p>
-    <button id="resume-button">LANJUT</button>
-  </div>
-</div>
-
-<div id="busted-screen" class="overlay">
-  <div class="panel">
-    <h1>KETANGKAP!</h1>
-    <p id="busted-text"></p>
-    <button id="continue-button">LANJUT</button>
-  </div>
-</div>
-
 <script src="./vendor/three.min.js"></script>
 <script type="module" src="./src/main.js"></script>
 </body>

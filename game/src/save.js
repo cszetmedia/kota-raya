@@ -1,49 +1,26 @@
-// Kota Raya — menyimpan progres. Uang, misi berikutnya, dan apakah cerita
-// sudah selesai tinggal di localStorage, jadi kembali lagi nanti berarti
-// lanjut dari tempat kunjungan terakhir berhenti. Apa pun yang rusak atau
-// tidak tersedia dianggap "tidak ada save".
-import { SAVE_KEY } from './config.js';
-
-function asNumber(value, fallback) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
+// Kota Raya — simpanan progres di localStorage.
+// Kunci 'kotaraya-save-v1' berisi { missionIndex, cash }.
+import { CFG } from './config.js';
 
 export function loadSave() {
-  let parsed;
   try {
-    const raw = window.localStorage.getItem(SAVE_KEY);
+    const raw = window.localStorage.getItem(CFG.saveKey);
     if (!raw) return null;
-    parsed = JSON.parse(raw);
-  } catch {
+    const d = JSON.parse(raw);
+    if (typeof d.missionIndex !== 'number' || typeof d.cash !== 'number') return null;
+    return d;
+  } catch (e) {
     return null;
   }
-  if (typeof parsed !== 'object' || parsed === null) return null;
-  return {
-    cash: asNumber(parsed.cash, 0),
-    missionIndex: asNumber(parsed.missionIndex, 0),
-    storyDone: parsed.storyDone === true,
-  };
 }
 
-export function saveGame(state) {
-  const payload = {
-    cash: state.cash,
-    missionIndex: state.missionIndex,
-    storyDone: state.storyDone,
-    savedAt: Date.now(),
-  };
+export function writeSave(world) {
   try {
-    window.localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function clearSave() {
-  try {
-    window.localStorage.removeItem(SAVE_KEY);
-  } catch {
-    // Penyimpanan bisa tidak tersedia (mode privat, cookie diblokir); abaikan.
+    window.localStorage.setItem(
+      CFG.saveKey,
+      JSON.stringify({ missionIndex: world.missions.index, cash: world.cash }),
+    );
+  } catch (e) {
+    /* penyimpanan tidak tersedia */
   }
 }

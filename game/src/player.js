@@ -1,209 +1,95 @@
-// Kota Raya — pemain: Raka, pengemudi muda dari Kampung Melati. Di jalan
-// kaki dia berjalan dan berlari dengan langkah mengayun dan bisa memukul;
-// di dekat mobil dia bisa masuk (mencuri mobil lalu lintas atau mobil
-// parkir adalah kejahatan) lalu menyetir dengan fisika arcade. Keluar dari
-// mobil berarti mobilnya berhenti di tempat itu.
-//
-// Gerak kaki relatif terhadap arah kamera: W selalu berjalan menjauhi
-// kamera, dan badan Raka berputar halus mengikuti arah geraknya.
-import { PLAYER_TUNING, CAR_TUNING } from './config.js';
-import { makeCar } from './vehicles.js';
-import { resolveCollisions, clampToCity } from './city.js';
+// Kota Raya — Raka berjalan kaki, naik/turun mobil, dan mencuri mobil.
+// Mencuri mobil orang = wanted naik; sedan merah saat misi 3 = +2 bintang lagi.
+import { CFG } from './config.js';
+import { clamp, dist, blocked, addWanted } from './world.js';
 
-// Raka: topi merah, jaket biru, celana jeans.
-function buildRaka() {
-  const group = new THREE.Group();
-  const skin = new THREE.MeshLambertMaterial({ color: 0xc89878 });
-  const jacket = new THREE.MeshLambertMaterial({ color: 0x2c6fd8 });
-  const jeans = new THREE.MeshLambertMaterial({ color: 0x2a3040 });
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skin);
-  head.position.y = 1.66;
-  group.add(head);
-  const cap = new THREE.Mesh(
-    new THREE.BoxGeometry(0.48, 0.14, 0.48),
-    new THREE.MeshLambertMaterial({ color: 0xd8382c }),
+export function createPlayer(world) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42, 0.5, 1.15, 8),
+    new THREE.MeshLambertMaterial({ color: 0x2e86c1 }),
   );
-  cap.position.y = 1.9;
-  group.add(cap);
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.78, 0.34), jacket);
-  body.position.y = 1.08;
-  group.add(body);
-  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.72, 0.24), jeans);
-  legL.position.set(-0.15, 0.36, 0);
-  legL.name = 'legL';
-  group.add(legL);
-  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.72, 0.24), jeans);
-  legR.position.set(0.15, 0.36, 0);
-  legR.name = 'legR';
-  group.add(legR);
-  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.62, 0.2), jacket);
-  armL.position.set(-0.4, 1.08, 0);
-  armL.name = 'armL';
-  group.add(armL);
-  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.62, 0.2), jacket);
-  armR.position.set(0.4, 1.08, 0);
-  armR.name = 'armR';
-  group.add(armR);
-  return group;
+  body.position.y = 0.85;
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.34, 10, 8),
+    new THREE.MeshLambertMaterial({ color: 0xe8b88a }),
+  );
+  head.position.y = 1.7;
+  g.add(body, head);
+  g.position.set(world.player.x, 0, world.player.z);
+  g.rotation.y = world.player.heading;
+  world.scene.add(g);
+  world.player.mesh = g;
 }
 
-export function createPlayer(scene, x, z) {
-  const mesh = buildRaka();
-  mesh.position.set(x, 0, z);
-  scene.add(mesh);
-  return {
-    mesh,
-    x,
-    z,
-    heading: 0,
-    speed: 0,
-    health: PLAYER_TUNING.maxHealth,
-    inCar: false,
-    car: null, // mobil yang sedang dikemudikan {mesh, x, z, heading, speed, ...}
-    carMesh: null,
-    phase: 0,
-    punchCooldown: 0,
-    punchAnim: 0,
-    invulnerable: 0,
-  };
-}
-
-function animateWalk(player, moving) {
-  const swing = moving ? Math.sin(player.phase) * 0.55 : 0;
-  const legL = player.mesh.getObjectByName('legL');
-  const legR = player.mesh.getObjectByName('legR');
-  const armL = player.mesh.getObjectByName('armL');
-  const armR = player.mesh.getObjectByName('armR');
-  if (legL) legL.rotation.x = swing;
-  if (legR) legR.rotation.x = -swing;
-  if (armL) armL.rotation.x = -swing * 0.7;
-  if (armR) armR.rotation.x = swing * 0.7;
-  if (player.punchAnim > 0 && armR) armR.rotation.x = -1.6;
-}
-
-// Jalan kaki: WASD relatif terhadap arah kamera, Shift untuk lari.
-export function stepPlayerOnFoot(player, input, cameraYaw, colliders, dt) {
-  const throttle = input.throttle();
-  const steer = input.steer();
-  const sprint = input.sprint();
-  const speed = sprint ? PLAYER_TUNING.sprintSpeed : PLAYER_TUNING.walkSpeed;
-  // Maju adalah arah pandangan kamera; samping adalah sumbu strafe.
-  const fx = Math.sin(cameraYaw);
-  const fz = Math.cos(cameraYaw);
-  const rx = Math.cos(cameraYaw);
-  const rz = -Math.sin(cameraYaw);
-  let mx = fx * throttle + rx * steer;
-  let mz = fz * throttle + rz * steer;
-  const len = Math.hypot(mx, mz);
-  const moving = len > 0.01;
-  if (moving) {
-    mx /= len;
-    mz /= len;
-    player.x += mx * speed * dt;
-    player.z += mz * speed * dt;
-    // Putar badan ke arah gerak dengan halus, paling cepat saat berbelok.
-    let diff = Math.atan2(mx, mz) - player.heading;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    player.heading += diff * Math.min(1, dt * PLAYER_TUNING.turnSpeed);
-    player.phase += dt * (sprint ? 13 : 9);
-    player.speed = speed;
-  } else {
-    player.speed = 0;
-    player.phase += dt * 2;
+export function updatePlayer(world, dt, input) {
+  const p = world.player;
+  if (p.inCar) return;
+  const turn = (input.left() ? 1 : 0) - (input.right() ? 1 : 0);
+  p.heading += turn * 2.2 * dt;
+  let move = 0;
+  if (input.forward()) move = CFG.walkSpeed;
+  else if (input.back()) move = -CFG.walkSpeed * 0.6;
+  p.speed = move;
+  if (move !== 0) {
+    const nx = p.x + Math.sin(p.heading) * move * dt;
+    const nz = p.z + Math.cos(p.heading) * move * dt;
+    if (!blocked(world, nx, nz, 0.8)) {
+      p.x = clamp(nx, -CFG.bound, CFG.bound);
+      p.z = clamp(nz, -CFG.bound, CFG.bound);
+    }
   }
-  const clamped = clampToCity(player.x, player.z);
-  const resolved = resolveCollisions(colliders, clamped.x, clamped.z, PLAYER_TUNING.radius);
-  player.x = resolved.x;
-  player.z = resolved.z;
-  player.mesh.position.set(player.x, 0, player.z);
-  player.mesh.rotation.y = player.heading;
-  animateWalk(player, moving);
-  if (player.punchAnim > 0) player.punchAnim -= dt;
-  if (player.punchCooldown > 0) player.punchCooldown -= dt;
-  if (player.invulnerable > 0) player.invulnerable -= dt;
+  p.mesh.position.set(p.x, 0, p.z);
+  p.mesh.rotation.y = p.heading;
 }
 
-// Menyetir mobil pemain dengan fisika arcade dan tabrakan gedung.
-export function stepPlayerInCar(player, input, colliders, dt) {
-  const car = player.car;
-  const drive = { speed: car.speed, heading: car.heading, x: car.x, z: car.z };
-  const throttle = input.throttle();
-  const steer = input.steer();
-  if (throttle > 0) drive.speed += CAR_TUNING.accel * dt;
-  else if (throttle < 0) {
-    if (drive.speed > 0.5) drive.speed -= CAR_TUNING.brake * dt;
-    else drive.speed -= CAR_TUNING.reverseAccel * dt;
-  } else {
-    drive.speed -= Math.sign(drive.speed) * CAR_TUNING.grip * 0.6 * dt;
-    if (Math.abs(drive.speed) < 0.2) drive.speed = 0;
+function nearestCar(world, maxDist) {
+  const p = world.player;
+  const cands = [world.starterCar, world.targetCar, ...world.parked, ...world.traffic];
+  let best = null;
+  let bestD = maxDist;
+  for (const c of cands) {
+    const d = dist(p.x, p.z, c.x, c.z);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
   }
-  if (input.brake()) drive.speed -= Math.sign(drive.speed) * CAR_TUNING.brake * dt;
-  const boost = input.sprint() ? 1.25 : 1;
-  drive.speed = Math.max(-CAR_TUNING.maxReverse, Math.min(CAR_TUNING.maxSpeed * boost, drive.speed));
-  const steerAmount = steer * CAR_TUNING.steer * dt * Math.min(1, Math.abs(drive.speed) / 8 + 0.25);
-  drive.heading += steerAmount * Math.sign(drive.speed);
-  drive.x += Math.sin(drive.heading) * drive.speed * dt;
-  drive.z += Math.cos(drive.heading) * drive.speed * dt;
-  const clamped = clampToCity(drive.x, drive.z);
-  const resolved = resolveCollisions(colliders, clamped.x, clamped.z, CAR_TUNING.radius);
-  // Berhenti keras menabrak dinding membunuh sebagian besar kecepatan.
-  if (Math.hypot(resolved.x - drive.x, resolved.z - drive.z) > 0.05) {
-    drive.speed *= 0.4;
-  }
-  car.x = resolved.x;
-  car.z = resolved.z;
-  car.heading = drive.heading;
-  car.speed = drive.speed;
-  car.mesh.position.set(car.x, 0, car.z);
-  car.mesh.rotation.y = car.heading;
-  player.x = car.x;
-  player.z = car.z;
-  player.heading = car.heading;
-  player.speed = Math.abs(car.speed);
-  return car;
+  return best;
 }
 
-// Ambil alih sebuah mobil sebagai kendaraan pemain.
-export function enterCar(player, car, scene) {
-  if (car.taken) return false;
-  car.taken = true;
-  if (car.driver) {
-    // Sopirnya kabur dan lari: mobil lalu lintas itu keluar dari lajurnya.
-    car.driver = false;
+export function tryEnterExit(world) {
+  const p = world.player;
+  if (p.inCar) {
+    const car = p.car;
+    car.speed = 0;
+    // Turun di sisi mobil.
+    p.x = car.x + Math.sin(car.heading + Math.PI / 2) * 2.5;
+    p.z = car.z + Math.cos(car.heading + Math.PI / 2) * 2.5;
+    p.heading = car.heading;
+    p.inCar = false;
+    p.car = null;
+    p.carMesh = null;
+    p.speed = 0;
+    p.mesh.visible = true;
+    p.mesh.position.set(p.x, 0, p.z);
+    return;
   }
-  player.car = car;
-  player.carMesh = car.mesh;
-  player.inCar = true;
-  player.mesh.visible = false;
-  player.x = car.x;
-  player.z = car.z;
-  player.heading = car.heading;
-  if (car.speed === undefined) car.speed = 0;
-  if (car.heading === undefined) car.heading = 0;
-  return true;
-}
-
-// Keluar di samping mobil; mobilnya tetap di tempat ia berhenti.
-export function exitCar(player, scene) {
-  const car = player.car;
+  const car = nearestCar(world, CFG.enterRadius);
   if (!car) return;
-  const side = 2.4;
-  player.x = car.x + Math.cos(car.heading) * side;
-  player.z = car.z - Math.sin(car.heading) * side;
-  player.inCar = false;
-  player.car = null;
-  player.carMesh = null;
-  player.mesh.visible = true;
-  player.mesh.position.set(player.x, 0, player.z);
-  car.speed = 0;
-}
-
-// Bangun mobil pemain baru di satu titik (mobil misi, kendaraan awal).
-export function spawnPlayerCar(scene, color, x, z, heading) {
-  const mesh = makeCar(color);
-  mesh.position.set(x, 0, z);
-  mesh.rotation.y = heading;
-  scene.add(mesh);
-  return { mesh, x, z, heading, speed: 0, taken: false, playerOwned: true };
+  p.inCar = true;
+  p.car = car;
+  p.carMesh = car.mesh;
+  p.speed = 0;
+  p.mesh.visible = false;
+  if (car.kind === 'traffic' || car.kind === 'parked') {
+    addWanted(world, 1);
+  } else if (car.kind === 'target') {
+    addWanted(world, 1);
+    const m = world.missions.active;
+    if (m && m.id === 3 && m.stage === 0) {
+      addWanted(world, 2);
+      m.stage = 1;
+    }
+  }
 }

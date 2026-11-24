@@ -1,78 +1,41 @@
-// Kota Raya — input keyboard.
-//
-// Tombol yang ditahan mengemudikan dan menyetir; tekanan sekali (masuk
-// mobil, pukul, jeda, bisu, konfirmasi) dikunci sebagai flag dan diambil
-// sekali oleh loop game, sehingga tekanan yang jatuh di antara dua frame
-// tidak pernah hilang atau terhitung dua kali.
-export const ACTION_ENTER = 1;
-export const ACTION_PUNCH = 2;
-export const ACTION_PAUSE = 4;
-export const ACTION_MUTE = 8;
-export const ACTION_CONFIRM = 16;
-
-// Tombol fisik untuk tiap arah. WASD dan tombol panah sama-sama bisa.
-const KEY_BINDINGS = {
-  forward: ['KeyW', 'ArrowUp'],
-  back: ['KeyS', 'ArrowDown'],
-  left: ['KeyA', 'ArrowLeft'],
-  right: ['KeyD', 'ArrowRight'],
-  sprint: ['ShiftLeft', 'ShiftRight'],
-  brake: ['Space'],
-};
-
-// Tombol sekali-tekan dan flag yang dinaikkan masing-masing.
-const PRESS_ACTIONS = {
-  KeyE: ACTION_ENTER,
-  KeyF: ACTION_PUNCH,
-  Escape: ACTION_PAUSE,
-  KeyP: ACTION_PAUSE,
-  KeyM: ACTION_MUTE,
-  Enter: ACTION_CONFIRM,
-};
-
-// Tombol yang perilaku default browser-nya (scroll halaman) harus dicegah.
-const SCROLL_KEYS = new Set([...KEY_BINDINGS.forward, ...KEY_BINDINGS.back, ...KEY_BINDINGS.brake]);
-
+// Kota Raya — input keyboard (WASD + E + Enter, plus panah).
+// `pressed` hanya hidup satu frame; main loop memanggil endFrame() tiap putaran.
 export function createInput() {
-  const held = new Set();
-  let queued = 0;
+  const keys = new Set();
+  const pressed = new Set();
+  const watched = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
-  window.addEventListener('keydown', (event) => {
-    if (event.repeat) return;
-    held.add(event.code);
-    const flag = PRESS_ACTIONS[event.code];
-    if (flag !== undefined) queued |= flag;
-    if (SCROLL_KEYS.has(event.code)) event.preventDefault();
+  window.addEventListener('keydown', (e) => {
+    if (watched.includes(e.code)) e.preventDefault();
+    if (!e.repeat) pressed.add(e.code);
+    keys.add(e.code);
   });
-  window.addEventListener('keyup', (event) => {
-    held.delete(event.code);
-  });
-  window.addEventListener('blur', () => {
-    held.clear();
-  });
+  window.addEventListener('keyup', (e) => keys.delete(e.code));
 
-  const anyHeld = (codes) => codes.some((code) => held.has(code));
-
-  return {
-    // -1 untuk mundur, +1 untuk maju, 0 bila tidak ada (atau keduanya) ditekan.
-    throttle() {
-      return (anyHeld(KEY_BINDINGS.forward) ? 1 : 0) - (anyHeld(KEY_BINDINGS.back) ? 1 : 0);
+  const input = {
+    auto: { forward: false },
+    forward() {
+      return keys.has('KeyW') || keys.has('ArrowUp') || input.auto.forward;
     },
-    // -1 untuk kiri, +1 untuk kanan, 0 bila tidak ada (atau keduanya) ditekan.
-    steer() {
-      return (anyHeld(KEY_BINDINGS.right) ? 1 : 0) - (anyHeld(KEY_BINDINGS.left) ? 1 : 0);
+    back() {
+      return keys.has('KeyS') || keys.has('ArrowDown');
     },
-    sprint() {
-      return anyHeld(KEY_BINDINGS.sprint);
+    left() {
+      return keys.has('KeyA') || keys.has('ArrowLeft');
     },
-    brake() {
-      return anyHeld(KEY_BINDINGS.brake);
+    right() {
+      return keys.has('KeyD') || keys.has('ArrowRight');
     },
-    // Tekanan sekali yang terkumpul sejak pemanggilan terakhir, sebagai flag ACTION_*.
-    takeActions() {
-      const taken = queued;
-      queued = 0;
-      return taken;
+    consume(code) {
+      if (pressed.has(code)) {
+        pressed.delete(code);
+        return true;
+      }
+      return false;
+    },
+    endFrame() {
+      pressed.clear();
     },
   };
+  return input;
 }

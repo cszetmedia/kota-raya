@@ -1,133 +1,71 @@
-// Kota Raya — HUD: objektif misi, uang, bintang wanted, nyawa, kecepatan,
-// subtitle dialog, toast, dan minimap 2D yang hidup (jalan, pemain, lalu
-// lintas, polisi, penanda misi). Semua DOM tinggal di index.html; modul
-// ini yang memperbaruinya.
-import { WORLD } from './config.js';
-
-const MAP_SIZE = 180; // kanvas minimap 180x180, menampilkan seluruh peta
+// Kota Raya — HUD: kecepatan, bintang wanted, uang, nyawa, objektif, minimap.
+import { CFG } from './config.js';
+import { objectiveText } from './missions.js';
 
 export function createHud() {
-  const el = (id) => document.getElementById(id);
-  const objective = el('objective');
-  const cash = el('cash');
-  const stars = el('stars');
-  const health = el('health');
-  const speed = el('speed');
-  const dialog = el('dialog');
-  const toast = el('toast');
-  const banner = el('banner');
-  const minimap = el('minimap');
-  const mapCtx = minimap.getContext('2d');
-  let dialogTimer = 0;
-  let toastTimer = 0;
-  let bannerTimer = 0;
-
-  const toMap = (v) => (v + 280) * (MAP_SIZE / 560);
-
-  function paintMinimap(state) {
-    mapCtx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
-    // Laut, pasir, dan daratan.
-    mapCtx.fillStyle = '#2fa8c8';
-    mapCtx.fillRect(0, toMap(WORLD.seaZ), MAP_SIZE, MAP_SIZE - toMap(WORLD.seaZ));
-    mapCtx.fillStyle = '#e8d8a0';
-    mapCtx.fillRect(0, toMap(WORLD.beachZ), MAP_SIZE, toMap(WORLD.seaZ) - toMap(WORLD.beachZ));
-    mapCtx.fillStyle = '#b8a888';
-    mapCtx.fillRect(0, 0, MAP_SIZE, toMap(WORLD.beachZ));
-    // Jalan-jalan.
-    mapCtx.fillStyle = '#3a3f46';
-    const scale = MAP_SIZE / 560;
-    for (const r of WORLD.roads) {
-      mapCtx.fillRect(toMap(r - WORLD.roadWidth / 2), 0, WORLD.roadWidth * scale, toMap(WORLD.beachZ));
-      mapCtx.fillRect(0, toMap(r - WORLD.roadWidth / 2), MAP_SIZE, WORLD.roadWidth * scale);
-    }
-    // Penanda misi, berdenyut.
-    if (state.missionTarget) {
-      const mx = toMap(state.missionTarget.x);
-      const my = toMap(state.missionTarget.z);
-      const pulse = 5 + Math.sin(performance.now() / 300) * 2;
-      mapCtx.fillStyle = '#ffd400';
-      mapCtx.beginPath();
-      mapCtx.arc(mx, my, pulse, 0, Math.PI * 2);
-      mapCtx.fill();
-      mapCtx.strokeStyle = '#7a5c00';
-      mapCtx.lineWidth = 2;
-      mapCtx.stroke();
-    }
-    // Lalu lintas sebagai titik putih, polisi sebagai titik biru/merah berkedip.
-    const flash = Math.floor(performance.now() / 300) % 2 === 0;
-    for (const car of state.traffic) {
-      mapCtx.fillStyle = '#ffffff';
-      mapCtx.fillRect(toMap(car.mesh.position.x) - 2, toMap(car.mesh.position.z) - 2, 4, 4);
-    }
-    for (const car of state.police) {
-      mapCtx.fillStyle = flash ? '#2040ff' : '#ff2020';
-      mapCtx.beginPath();
-      mapCtx.arc(toMap(car.x), toMap(car.z), 4, 0, Math.PI * 2);
-      mapCtx.fill();
-    }
-    // Panah pemain, diputar mengikuti arah hadap.
-    const px = toMap(state.playerX);
-    const py = toMap(state.playerZ);
-    mapCtx.save();
-    mapCtx.translate(px, py);
-    mapCtx.rotate(Math.PI - state.heading);
-    mapCtx.fillStyle = '#2c6fd8';
-    mapCtx.strokeStyle = '#ffffff';
-    mapCtx.lineWidth = 1.5;
-    mapCtx.beginPath();
-    mapCtx.moveTo(0, -7);
-    mapCtx.lineTo(5, 6);
-    mapCtx.lineTo(0, 3);
-    mapCtx.lineTo(-5, 6);
-    mapCtx.closePath();
-    mapCtx.fill();
-    mapCtx.stroke();
-    mapCtx.restore();
-    // Tanda utara.
-    mapCtx.fillStyle = 'rgba(255,255,255,0.9)';
-    mapCtx.font = 'bold 11px system-ui, sans-serif';
-    mapCtx.fillText('U', 6, 14);
-  }
-
   return {
-    showDialog(line) {
-      dialog.textContent = line;
-      dialog.style.opacity = '1';
-      dialogTimer = 3.6;
-    },
-    showToast(text) {
-      toast.textContent = text;
-      toast.style.opacity = '1';
-      toastTimer = 3.2;
-    },
-    showBanner(text) {
-      banner.textContent = text;
-      banner.style.opacity = '1';
-      bannerTimer = 2.6;
-    },
-    update(dt, state) {
-      if (dialogTimer > 0) {
-        dialogTimer -= dt;
-        if (dialogTimer <= 0) dialog.style.opacity = '0';
-      }
-      if (toastTimer > 0) {
-        toastTimer -= dt;
-        if (toastTimer <= 0) toast.style.opacity = '0';
-      }
-      if (bannerTimer > 0) {
-        bannerTimer -= dt;
-        if (bannerTimer <= 0) banner.style.opacity = '0';
-      }
-      objective.textContent = state.objective;
-      cash.textContent = `Rp ${state.cash}rb`;
-      let starText = '';
-      for (let i = 0; i < 5; i += 1) starText += i < state.stars ? '★' : '☆';
-      stars.textContent = starText;
-      stars.style.color = state.stars > 0 ? '#ffd400' : 'rgba(255,255,255,0.55)';
-      health.textContent = `❤ ${Math.ceil(state.health)}`;
-      health.style.color = state.health < 30 ? '#ff5a5a' : '#ffffff';
-      speed.textContent = state.inCar ? `${Math.round(state.speedKmh)} km/j` : '';
-      paintMinimap(state);
-    },
+    el: document.getElementById('hud'),
+    speed: document.getElementById('speed'),
+    stars: document.getElementById('stars'),
+    cash: document.getElementById('cash'),
+    health: document.getElementById('health'),
+    objective: document.getElementById('objective'),
+    minimap: document.getElementById('minimap'),
   };
+}
+
+export function updateHud(hud, world) {
+  const p = world.player;
+  const kmh = Math.round(Math.abs(p.inCar && p.car ? p.car.speed : p.speed) * 3.6);
+  hud.speed.textContent = kmh + ' km/j';
+  hud.stars.textContent = '★'.repeat(world.wanted.stars) + '☆'.repeat(5 - world.wanted.stars);
+  hud.cash.textContent = 'Rp ' + world.cash;
+  hud.health.textContent = 'Nyawa ' + Math.round(p.health);
+  hud.objective.textContent = objectiveText(world);
+  drawMinimap(hud.minimap, world);
+}
+
+// Peta kecil 180x180: jalan, laut, pemain, lalu lintas, polisi, dan target misi.
+function drawMinimap(canvas, world) {
+  const ctx = canvas.getContext('2d');
+  const S = canvas.width;
+  const px = (x) => ((x + CFG.half) / CFG.worldSize) * S;
+  const pz = (z) => ((z + CFG.half) / CFG.worldSize) * S;
+  ctx.fillStyle = '#0d1b2a';
+  ctx.fillRect(0, 0, S, S);
+  // Laut di selatan.
+  ctx.fillStyle = '#2e7fb8';
+  ctx.fillRect(0, pz(228), S, S - pz(228));
+  // Jalan.
+  ctx.strokeStyle = '#5a646e';
+  ctx.lineWidth = 4;
+  for (const a of CFG.avenues) {
+    ctx.beginPath();
+    ctx.moveTo(px(a), 0);
+    ctx.lineTo(px(a), S);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, pz(a));
+    ctx.lineTo(S, pz(a));
+    ctx.stroke();
+  }
+  const dot = (x, z, color, r) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px(x), pz(z), r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  for (const c of world.traffic) dot(c.x, c.z, '#e8b93c', 2);
+  for (const c of world.parked) dot(c.x, c.z, '#7a7f85', 2);
+  for (const p of world.wanted.police) dot(p.x, p.z, '#3d7dd9', 3);
+  if (world.sari && !world.sari.pickedUp) dot(world.sari.x, world.sari.z, '#e84393', 3);
+  if (world.targetCar) dot(world.targetCar.x, world.targetCar.z, '#ff5340', 3);
+  if (world.missionTarget) {
+    ctx.strokeStyle = '#ffd24a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px(world.missionTarget.x), pz(world.missionTarget.z), 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  dot(world.player.x, world.player.z, '#ffffff', 3.5);
 }
